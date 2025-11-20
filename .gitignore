@@ -1,0 +1,8 @@
+# environment files
+.env
+.venv/
+
+# python files
+__pycache__/
+*.py[cod]
+*.log
