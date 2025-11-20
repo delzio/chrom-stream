@@ -1,0 +1,14 @@
+trend_resolution_hz: 0.1
+stream_rate_hz: 1
+holds: true
+number_of_trends: 1
+number_of_columns: 4
+anomaly_rate: 0.2
+noise_scale: 1.0
+column_util_gap: 1000
+noise_def:
+  uv_mau: [0, 2.0]
+  cond_mScm: [0, 0.15]
+  ph: [0, 0.01]
+  flow_mL_min: [0, 300]
+  pressure_bar: [0, 0.01]

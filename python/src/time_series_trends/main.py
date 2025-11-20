@@ -1,31 +1,54 @@
 import os
+import argparse
+import yaml
 import random
 import time
 import pandas as pd
 
 from trend_generator import TrendGenerator
 
-def main(quick_run_mode, 
-         trend_resolution_hz=1, 
-         stream_rate_hz=1, 
-         holds=True, 
-         number_of_trends=8, 
-         number_of_columns=4, 
-         anomaly_rate=0.2,
-         noise_def=None,
-         noise_scale=1.0,
-         column_util_gap=1000):
+def parse_args():
+    parser = argparse.ArgumentParser(description="Chrom Sensor Data Stream Simulator")
+    parser.add_argument('--config', type=str, default=None, help='Path to YAML configuration file')
+    parser.add_argument('--quick_run', action='store_true', help='Run in quick mode for testing')
 
-    if quick_run_mode:
-        # Settings for quick run mode
-        # This will generate a total of 16 trends across 4 columns in under 5 minutes
-        trend_resolution_hz = .1
-        stream_rate_hz = 10
-        holds = False 
-        number_of_trends = 4
-        number_of_columns = 4
-        anomaly_rate = 0.3
-        column_util_gap = 5  # seconds between columns
+    return parser.parse_args()
+
+def load_config(config_path):
+    with open(config_path) as file:
+        return yaml.safe_load(file)
+
+def main():
+
+    args = parse_args()
+    if args.quick_run:
+        # quick run settings: generates generates 16 trends across 4 columns within 5 minutes
+        config = {}
+        config["trend_resolution_hz"] = .1
+        config["stream_rate_hz"] = 10
+        config["holds"] = False 
+        config["number_of_trends"] = 4
+        config["number_of_columns"] = 4
+        config["anomaly_rate"] = 0.3
+        config["noise_scale"] = 1.0
+        config["column_util_gap"] = 5
+        config["noise_def"] = {
+            "uv_mau": (0, 2.0),
+            "cond_mScm": (0, 0.15),
+            "ph": (0, 0.01),
+            "flow_mL_min": (0, 300),
+            "pressure_bar": (0, 0.01)
+        }
+    elif args.config:
+        config = load_config(args.config)
+    else:
+        raise ValueError("Either --config must be provided or --quick_run must be set.")
+
+    generate_stream(**config)
+
+def generate_stream(trend_resolution_hz, stream_rate_hz, holds,
+                   number_of_trends, number_of_columns, anomaly_rate, 
+                   noise_scale, column_util_gap, noise_def):
 
     good_trend_path = os.path.join(os.getcwd(),"data","good_trend_template.csv")
     good_trend_gen = TrendGenerator(good_trend_path, noise_def=noise_def, noise_scale=noise_scale, holds=holds)
@@ -40,14 +63,13 @@ def main(quick_run_mode,
         for j in range(number_of_trends):
             # Decide whether to use good or bad trend template based on anomaly rate
             if random.random() < anomaly_rate:
-                bad_trend_gen.generate_dataset(trend_resolution_hz=trend_resolution_hz)
-                trend_gen = bad_trend_gen.get_stream_generator()
+                simulated_data = bad_trend_gen.generate_dataset(trend_resolution_hz=trend_resolution_hz)
+                trend_gen = TrendGenerator.get_stream_generator(simulated_data)
             else:
-                good_trend_gen.generate_dataset(trend_resolution_hz=trend_resolution_hz)
-                trend_gen = good_trend_gen.get_stream_generator()
+                simulated_data = good_trend_gen.generate_dataset(trend_resolution_hz=trend_resolution_hz)
+                trend_gen = TrendGenerator.get_stream_generator(simulated_data)
             trend_gen_dict[key].append(trend_gen)
 
-    #start_ts = time.time()
     for trend_no in range(number_of_trends):
         active_generators = []
         for col_key, gen_list in trend_gen_dict.items():
@@ -66,9 +88,6 @@ def main(quick_run_mode,
                     continue
             time.sleep(1.0 / stream_rate_hz)
         time.sleep(column_util_gap)
-    #end_ts = time.time()
-    #total_time_min = (end_ts - start_ts) / 60.0
-    #print(f"Stream time: {total_time_min:.2f} minutes.")
 
 if __name__ == "__main__":
-    main(quick_run_mode=True)
+    main()

@@ -13,13 +13,13 @@ class TrendGenerator:
         holds (bool): Whether to include hold periods in the generated data
 
     Methods:
-        generate_dataset: Creates pre-defined simulated chromatography trend data
+        generate_dataset: Creates full simulated chromatography trend data
         get_stream_generator: Generator function to stream simulated chromatography trend data
     """
     
     def __init__(self, template_path, noise_def=None, noise_scale=1.0, holds=True):
         self.template_data = pd.read_csv(template_path)
-        if not holds:
+        if holds is False:
             self.template_data = self.template_data[self.template_data["flow_setpoint_L_min"] > 0]
             # reset time_min to 0.5 minute increments without holds
             self.template_data["time_min"] = np.arange(0, len(self.template_data) * 0.5, 0.5)
@@ -63,19 +63,16 @@ class TrendGenerator:
         df_interp["cond_mScm"] = df_interp["cond_mScm"].clip(0.1, 120.0)
 
         # store the simulated data in the instance
-        self.simulated_data = df_interp
+        return df_interp
     
-    def get_stream_generator(self, trend_resolution_hz=None, test_mode=False):
+    @staticmethod
+    def get_stream_generator(simulated_data, test_mode=False):
         """
-        Generator function to stream simulated chromatography trend data at specified frequency.
+        Generator function to stream simulated chromatography trend data at specified frequency
         """
 
-        # Generate simulated data if not already generated
-        if not hasattr(self, 'simulated_data'):
-            self.generate_dataset(trend_resolution_hz=trend_resolution_hz)
-
-        # Create Generator to 
-        for n, row in self.simulated_data.iterrows():
+        # Create generator of values from simulated_data
+        for n, row in simulated_data.iterrows():
             yield row.to_dict()
             if test_mode and n >= 5:
                 break
