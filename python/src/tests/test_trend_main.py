@@ -1,7 +1,7 @@
 import pytest
 import time
 
-from main import generate_stream
+from time_series_trends.main import generate_stream
 
 def test_generate_stream_superfast(noise_def_fixture):
     """

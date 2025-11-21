@@ -2,11 +2,13 @@ import os
 import pytest
 import pandas as pd
 
-from trend_generator import TrendGenerator
+from time_series_trends.trend_generator import TrendGenerator
+from batch_context.batch_context_generator import BatchContextGenerator
 
 good_template_path = os.path.join(os.getenv("PYTHONPATH"), "data", "good_trend_template.csv")
 bad_template_path = os.path.join(os.getenv("PYTHONPATH"), "data", "bad_trend_template.csv")
 
+# Trend Generator Fixtures
 @pytest.fixture
 def noise_def_fixture():
     return {
@@ -32,3 +34,20 @@ def good_trend_with_holds_fixture(noise_def_fixture):
 @pytest.fixture
 def bad_trend_with_holds_fixture(noise_def_fixture):
     return TrendGenerator(bad_template_path, noise_def=noise_def_fixture, holds=True)
+
+# Batch Context Generator Fixtures
+@pytest.fixture
+def good_batch_context_with_holds():
+    return BatchContextGenerator(good_template_path, holds=True)
+
+@pytest.fixture
+def bad_batch_context_with_holds():
+    return BatchContextGenerator(bad_template_path, holds=True)
+
+@pytest.fixture
+def good_batch_context_no_holds():
+    return BatchContextGenerator(good_template_path, holds=False)
+
+@pytest.fixture
+def bad_batch_context_no_holds():
+    return BatchContextGenerator(bad_template_path, holds=False)

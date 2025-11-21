@@ -1,6 +1,6 @@
 import pytest
 
-from trend_generator import TrendGenerator
+from time_series_trends.trend_generator import TrendGenerator
 
 def test_stream_generator_items(good_trend_no_holds_fixture):
     simulated_df = good_trend_no_holds_fixture.generate_dataset(trend_resolution_hz=0.1)
