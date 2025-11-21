@@ -2,8 +2,6 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from trend_generator import TrendGenerator
-
 def test_good_template_dataset(noise_def_fixture, good_trend_with_holds_fixture):
     df = good_trend_with_holds_fixture.template_data
     

@@ -50,10 +50,10 @@ def generate_stream(trend_resolution_hz, stream_rate_hz, holds,
                    number_of_trends, number_of_columns, anomaly_rate, 
                    noise_scale, column_util_gap, noise_def):
 
-    good_trend_path = os.path.join(os.getcwd(),"data","good_trend_template.csv")
+    good_trend_path = os.path.join(os.getenv("PYTHONPATH"),"data","good_trend_template.csv")
     good_trend_gen = TrendGenerator(good_trend_path, noise_def=noise_def, noise_scale=noise_scale, holds=holds)
 
-    bad_trend_path = os.path.join(os.getcwd(),"data","bad_trend_template.csv")
+    bad_trend_path = os.path.join(os.getenv("PYTHONPATH"),"data","bad_trend_template.csv")
     bad_trend_gen = TrendGenerator(bad_trend_path, noise_def=noise_def, noise_scale=noise_scale, holds=holds)
 
     trend_gen_dict = {}
