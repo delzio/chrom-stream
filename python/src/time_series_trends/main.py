@@ -3,6 +3,7 @@ import argparse
 import yaml
 import random
 import time
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 
 from trend_generator import TrendGenerator
@@ -77,11 +78,13 @@ def generate_stream(trend_resolution_hz, stream_rate_hz, holds,
             active_generators.append((col_key, gen))
         
         streaming = True
+        streaming_start_ts = datetime.now(timezone.utc)
         while streaming:
             streaming = False
             for col_key, gen in active_generators:
                 try:
                     data_point = next(gen)
+                    data_point["time_sec"] = streaming_start_ts + timedelta(seconds=data_point["time_sec"])
                     print(f"{col_key}: {data_point}")
                     streaming = True
                 except StopIteration:
