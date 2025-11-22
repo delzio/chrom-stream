@@ -1,5 +1,5 @@
 import pytest
-import time
+from datetime import datetime, timedelta
 
 from time_series_trends.main import generate_stream
 
@@ -13,8 +13,8 @@ def test_generate_stream_superfast(noise_def_fixture):
     if no errors and the function completes in a time consistent with the stream rate, test passes
     """
     
-    start_ts = time.time()
+    start_ts = datetime.now()
     generate_stream(trend_resolution_hz=0.01, stream_rate_hz=10, holds=False, 
                     number_of_trends=2, number_of_columns=4, anomaly_rate=0.3, 
                     noise_scale=1, column_util_gap=0, noise_def=noise_def_fixture)
-    assert time.time() - start_ts < 10
+    assert (datetime.now() - start_ts).total_seconds() < 10

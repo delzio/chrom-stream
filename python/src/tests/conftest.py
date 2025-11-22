@@ -1,12 +1,15 @@
 import os
 import pytest
 import pandas as pd
+from datetime import datetime, timezone
 
 from time_series_trends.trend_generator import TrendGenerator
 from batch_context.batch_context_generator import BatchContextGenerator
 
 good_template_path = os.path.join(os.getenv("PYTHONPATH"), "data", "good_trend_template.csv")
 bad_template_path = os.path.join(os.getenv("PYTHONPATH"), "data", "bad_trend_template.csv")
+
+execution_time = datetime.now(timezone.utc)
 
 # Trend Generator Fixtures
 @pytest.fixture
@@ -38,16 +41,16 @@ def bad_trend_with_holds_fixture(noise_def_fixture):
 # Batch Context Generator Fixtures
 @pytest.fixture
 def good_batch_context_with_holds():
-    return BatchContextGenerator(good_template_path, holds=True)
+    return BatchContextGenerator(good_template_path, recipe_name="affinity_chrom", batch_id="1", chrom_id="chrom_1", execution_time=execution_time, holds=True)
 
 @pytest.fixture
 def bad_batch_context_with_holds():
-    return BatchContextGenerator(bad_template_path, holds=True)
+    return BatchContextGenerator(bad_template_path, recipe_name="affinity_chrom", batch_id="1", chrom_id="chrom_1", execution_time=execution_time, holds=True)
 
 @pytest.fixture
 def good_batch_context_no_holds():
-    return BatchContextGenerator(good_template_path, holds=False)
+    return BatchContextGenerator(good_template_path, recipe_name="affinity_chrom", batch_id="1", chrom_id="chrom_1", execution_time=execution_time, holds=False)
 
 @pytest.fixture
 def bad_batch_context_no_holds():
-    return BatchContextGenerator(bad_template_path, holds=False)
+    return BatchContextGenerator(bad_template_path, recipe_name="affinity_chrom", batch_id="1", chrom_id="chrom_1", execution_time=execution_time, holds=False)

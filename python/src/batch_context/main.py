@@ -1,26 +1,15 @@
-"""
-Batch Data:
- - Recipe Name
- - Batch ID (1 lot per trend)
- - Batch Start Time
- - Batch End Time
- - Phase ID
- - Phase Name
- - Phase Start Time
- - Phase End Time
- - Chrom Unit ID
-
-"""
-
 import os
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from batch_context.batch_context_generator import BatchContextGenerator
 
 def main():
-    batch_context = BatchContextGenerator(template_path=os.path.join(os.getenv("PYTHONPATH"),"data","good_trend_template.csv"))
-    print(batch_context.phase_data)
+
+    execution_time = datetime.now(timezone.utc)
+    batch_context = BatchContextGenerator(template_path=os.path.join(os.getenv("PYTHONPATH"),"data","good_trend_template.csv"),
+                                          recipe_name="affinity_chrom", batch_id="1", chrom_id="chrom_1", execution_time=execution_time)
+    print(batch_context.phase_ts)
 
     return
 
