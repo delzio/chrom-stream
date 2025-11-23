@@ -1,0 +1,49 @@
+{
+    "instrument": {
+        "id": "SoloVPE_1",
+        "manufacturer": "Repligen",
+        "software_version": "4.3.1"
+    },
+    "sample_metadata": {
+        "sample_id": "1",
+        "sample_type": "Pre-Affinity",
+        "batch_id": "1"
+    },
+    "run_metadata": {
+        "date": "2025-02-12T14:32:55Z",
+        "method": "Slope Spectroscopy",
+        "wavelength_nm": 280,
+        "pathlength_range_mm": {"min": 0.1, "max": 10.0},
+        "dilution_factor": 1.0,
+        "extinction_coefficient": 1.45,
+        "temperature_c": 22.1
+    },
+    "measurement": {
+        "raw_data_points": [
+            {"pathlength_mm": 0.1, "absorbance": 0.143},
+            {"pathlength_mm": 0.5, "absorbance": 0.712},
+            {"pathlength_mm": 1.0, "absorbance": 1.432},
+            {"pathlength_mm": 2.0, "absorbance": 2.861},
+            {"pathlength_mm": 5.0, "absorbance": 7.165},
+            {"pathlength_mm": 7.5, "absorbance": 10.725},
+            {"pathlength_mm": 10.0, "absorbance": 14.325}
+        ],
+        "linear_regression": {
+            "slope_abs_per_mm": 1.4325,
+            "intercept": 0.002,
+            "r_squared": 0.9998,
+            "num_points_used": 7,
+            "excluded_points": []
+        },
+        "concentration": {
+            "protein_concentration_mg_mL": 0.988,
+            "calculation": "concentration = slope / extinction_coefficient"
+        }
+    },
+    "system_status": {
+        "scan_result": "success",
+        "messages": [],
+        "warnings": [],
+        "errors": []
+    }
+}
