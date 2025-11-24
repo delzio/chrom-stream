@@ -5,9 +5,11 @@ from datetime import datetime, timezone
 
 from time_series_trends.trend_generator import TrendGenerator
 from batch_context.batch_context_generator import BatchContextGenerator
+from sample_results.sample_result_generator import SampleResultGenerator
 
 good_template_path = os.path.join(os.getenv("PYTHONPATH"), "data", "good_trend_template.csv")
 bad_template_path = os.path.join(os.getenv("PYTHONPATH"), "data", "bad_trend_template.csv")
+sample_template_path = os.path.join(os.getenv("PYTHONPATH"), "data", "sample_result.json")
 
 execution_time = datetime.now(timezone.utc)
 
@@ -54,3 +56,8 @@ def good_batch_context_no_holds():
 @pytest.fixture
 def bad_batch_context_no_holds():
     return BatchContextGenerator(bad_template_path, recipe_name="affinity_chrom", batch_id="1", chrom_id="chrom_1", execution_time=execution_time, holds=False)
+
+# Sample Result Generator Fixture
+@pytest.fixture
+def sample_result_fixture():
+    return SampleResultGenerator(template_path=sample_template_path)

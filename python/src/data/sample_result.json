@@ -32,8 +32,7 @@
             "slope_abs_per_mm": 1.4325,
             "intercept": 0.002,
             "r_squared": 0.9998,
-            "num_points_used": 7,
-            "excluded_points": []
+            "num_points_used": 7
         },
         "concentration": {
             "protein_concentration_mg_mL": 0.988,
@@ -43,7 +42,6 @@
     "system_status": {
         "scan_result": "success",
         "messages": [],
-        "warnings": [],
         "errors": []
     }
 }

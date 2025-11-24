@@ -12,13 +12,21 @@ class SampleResultGenerator:
 
     def __init__(self, template_path: str, noise_def: dict = None, noise_scale: float = 1.0):
         self.template_data = self._read_json(template_path=template_path)
-        self.noise_def = noise_def or {
-            # key: (sd mean, sd as ratio of abs value)
-            "absorbance": (0, 0.05),
-            "temperature": (0, 1.0)
-        }
+        if noise_def:
+            if "absorbance" not in noise_def or "temperature" not in noise_def:
+                raise KeyError("Error with noise_def argument: must include both 'absorbance' and 'temperature' in noise_def dict")
+            elif not isinstance(noise_def["absorbance"], tuple) or not isinstance(noise_def["temperature"], tuple):
+                raise TypeError("Error with noise_def argument: must be a dict of tuples")
+            elif len(noise_def["absorbance"]) != 2 or len(noise_def["temperature"]) != 2:
+                raise ValueError("Error with noise_def argument: each tuple in the dict be of length 2")
+            self.noise_def = noise_def
+        else:
+            self.noise_def = {
+                # key: (sd mean, sd)
+                "absorbance": (0, 0.16),
+                "temperature": (0, 1.0)
+            }
         self.noise_scale = noise_scale
-
     
     def _read_json(self, template_path):
         """ read json template """
@@ -74,7 +82,7 @@ class SampleResultGenerator:
         return trend_params
 
     
-    def generate_result(self, instrument_id: str, sample_id: str, sample_type: str, batch_id: str, measurement_ts: datetime, target_titer: float, bad_run: bool = False):
+    def generate_sample_result(self, instrument_id: str, sample_id: str, sample_type: str, batch_id: str, measurement_ts: datetime, target_titer: float, bad_run: bool = False):
         rng = np.random.default_rng()
 
         # initialize scan_result data
@@ -89,7 +97,7 @@ class SampleResultGenerator:
             "batch_id": batch_id
         }
         simulated_data["run_metadata"]["date"] = datetime.strftime(measurement_ts, "%Y-%m-%dT%H:%M:%SZ")
-        simulated_data["run_metadata"]["temperature_c"] = simulated_data["run_metadata"]["temperature_c"] + rng.normal(self.noise_def["temperature"][0], self.template_data["run_metadata"]["temperature_c"] * (1 + self.noise_def["temperature"][1]))
+        simulated_data["run_metadata"]["temperature_c"] = simulated_data["run_metadata"]["temperature_c"] + rng.normal(self.noise_def["temperature"][0], self.noise_def["temperature"][1])
 
         # correct pathlength and absorbance readings for target titer
         if target_titer != 1:
@@ -100,7 +108,7 @@ class SampleResultGenerator:
         for data_point in simulated_data["measurement"]["raw_data_points"]:
             if target_titer != 1:
                 data_point["pathlength_mm"]  = data_point["pathlength_mm"] / target_titer
-            data_point["absorbance"] = data_point["absorbance"] + rng.normal(self.noise_def["absorbance"][0], data_point["absorbance"] * (1 + self.noise_def["absorbance"][1]))
+            data_point["absorbance"] = data_point["absorbance"] + rng.normal(self.noise_def["absorbance"][0], self.noise_def["absorbance"][1])
 
         # generate calculated results
         try:
@@ -115,7 +123,10 @@ class SampleResultGenerator:
 
             simulated_data["measurement"]["concentration"]["protein_concentration_mg_mL"] = trend_params["slope"] / 1.45
 
-            simulated_data["system_status"]["scan_result"] = "success"
+            if trend_params["r_square"] >= 0.999:
+                simulated_data["system_status"]["scan_result"] = "success"
+            else:
+                 simulated_data["system_status"]["messages"].append("Linearity check failed: R-square below acceptable threshold (<0.9990).")
         except ValueError as e:
             simulated_data["system_status"]["errors"].append(str(e))
 
