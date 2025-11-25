@@ -22,7 +22,7 @@ class BatchContextGenerator:
         self.batch_ts = {
             "batch_id": self.batch_id,
             "start_ts": execution_time + timedelta(seconds=min(self.template_data["time_min"]) * 60),
-            "end_ts": execution_time + timedelta(seconds=min(self.template_data["time_min"]) * 60)
+            "end_ts": execution_time + timedelta(seconds=max(self.template_data["time_min"]) * 60)
         }
         self.phase_ts = self._generate_phase_data(execution_time=execution_time)
     
