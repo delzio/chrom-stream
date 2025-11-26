@@ -16,28 +16,57 @@ class BatchContextGenerator:
             self.template_data = self.template_data[self.template_data["flow_setpoint_L_min"] > 0]
             # reset time_min to 0.5 minute increments without holds
             self.template_data["time_min"] = np.arange(0, len(self.template_data) * 0.5, 0.5)
-        self.recipe_name = recipe_name
-        self.batch_id = batch_id
-        self.chrom_id = chrom_id
-        self.batch_ts = {
-            "batch_id": self.batch_id,
-            "start_ts": execution_time + timedelta(seconds=min(self.template_data["time_min"]) * 60),
-            "end_ts": execution_time + timedelta(seconds=max(self.template_data["time_min"]) * 60)
-        }
-        self.phase_ts = self._generate_phase_data(execution_time=execution_time)
+        self.simulated_batch_data = self._generate_batch_data(recipe_name=recipe_name, batch_id=batch_id, chrom_id=chrom_id, execution_time=execution_time)
+        self.simulated_phase_data = self._generate_phase_data(execution_time=execution_time)
     
+    def _generate_batch_data(self, recipe_name, batch_id, chrom_id, execution_time):
+        """ Creates pre-defined simulated batch context data template from template_data """
+
+        batch_data = []
+        for event in ["batch_start", "batch_end"]:
+            if event == "batch_start":
+                event_ts = execution_time + timedelta(seconds=min(self.template_data["time_min"]) * 60)
+            else:
+                event_ts = execution_time + timedelta(seconds=max(self.template_data["time_min"]) * 60)
+            batch_data.append({
+                "recipe_name": recipe_name,
+                "batch_id": batch_id,
+                "chrom_id": chrom_id,
+                "event": event,
+                "event_ts": event_ts
+            })
+
+        return pd.DataFrame(batch_data)
+
     def _generate_phase_data(self, execution_time):
-        """
-        Creates pre-defined simulated phase context data templated from template_data.
-        """
+        """Creates simulated phase context data templated from template_data."""
+        
+        agg = self.template_data.groupby("phase")["time_min"].agg(["min", "max"]).reset_index()
 
-        grouped_phases = self.template_data.groupby("phase").agg(
-            phase_start_min=("time_min", "min"),
-            phase_end_min=("time_min", "max")
-        ).reset_index()
+        records = []
+        for event, col in [("phase_start", "min"), ("phase_end", "max")]:
+            event_times = agg[col].values * 60  # seconds
+            event_ts = [execution_time + timedelta(seconds=t) for t in event_times]
 
-        grouped_phases["start_ts"] = [execution_time + timedelta(seconds=start_min * 60) for start_min in grouped_phases["phase_start_min"]]
-        grouped_phases["end_ts"] = [execution_time + timedelta(seconds=end_min * 60) for end_min in grouped_phases["phase_end_min"]]
-        grouped_phases = grouped_phases[["phase", "start_ts", "end_ts"]]
+            records.append(
+                pd.DataFrame({
+                    "phase": agg["phase"],
+                    "event": event,
+                    "event_ts": event_ts
+                })
+            )
 
-        return grouped_phases.sort_values("start_ts").reset_index(drop=True)
+        phase_data = pd.concat(records, ignore_index=True)
+        phase_data = phase_data.sort_values("event_ts").reset_index(drop=True)
+
+        return phase_data
+
+    @staticmethod
+    def get_event_generator(simulated_phase_data, test_mode=False):
+        """ Generator function to trace simulated batch context at specified frequency """
+
+        # Create generator of values from simulated_data
+        for n, row in simulated_phase_data.iterrows():
+            yield row.to_dict()
+            if test_mode and n >= 5:
+                break

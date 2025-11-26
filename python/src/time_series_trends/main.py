@@ -1,10 +1,8 @@
 import os
 import argparse
 import yaml
-import random
 import time
 from datetime import datetime, timedelta, timezone
-import pandas as pd
 
 from time_series_trends.trend_generator import TrendGenerator
 
@@ -29,8 +27,13 @@ def main():
         config["stream_rate_hz"] = 10
         config["holds"] = False 
         config["number_of_trends"] = 4
-        config["number_of_columns"] = 4
-        config["anomaly_rate"] = 0.3
+        config["column_ids"] = ["chrom_1", "chrom_2", "chrom_3", "chrom_4"]
+        config["batch_quality"] = {
+            "chrom_1": ["good", "good", "good", "good"],
+            "chrom_2": ["good", "bad", "good", "good"],
+            "chrom_3": ["good", "good", "good", "bad"],
+            "chrom_4": ["good", "bad", "good", "good"]
+        }
         config["noise_scale"] = 1.0
         config["column_util_gap"] = 5
         config["noise_def"] = {

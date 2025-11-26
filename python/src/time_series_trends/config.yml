@@ -1,9 +1,13 @@
 trend_resolution_hz: 0.1
 stream_rate_hz: 1
 holds: true
-number_of_trends: 1
-number_of_columns: 4
-anomaly_rate: 0.2
+number_of_trends: 4
+column_ids: ["chrom_1", "chrom_2", "chrom_3", "chrom_4"]
+batch_quality:
+  chrom_1: ["good", "good", "good", "good"]
+  chrom_2: ["good", "bad", "good", "good"]
+  chrom_3: ["good", "good", "good", "bad"]
+  chrom_4: ["good", "bad", "good", "good"]
 noise_scale: 1.0
 column_util_gap: 1000
 noise_def:

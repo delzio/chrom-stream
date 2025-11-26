@@ -15,6 +15,13 @@ def test_generate_stream_superfast(noise_def_fixture):
     
     start_ts = datetime.now()
     generate_stream(trend_resolution_hz=0.01, stream_rate_hz=10, holds=False, 
-                    number_of_trends=2, number_of_columns=4, anomaly_rate=0.3, 
-                    noise_scale=1, column_util_gap=0, noise_def=noise_def_fixture)
+                    number_of_trends=2, column_ids=["chrom_1", "chrom_2", "chrom_3", "chrom_4"], 
+                    batch_quality={
+                        "chrom_1": ["good", "good", "good", "good"],
+                        "chrom_2": ["good", "bad", "good", "good"],
+                        "chrom_3": ["good", "good", "good", "bad"],
+                        "chrom_4": ["good", "bad", "good", "good"]
+                    }, 
+                    noise_scale=1, column_util_gap=0, noise_def=noise_def_fixture,
+                    streaming_start_ts=start_ts)
     assert (datetime.now() - start_ts).total_seconds() < 10

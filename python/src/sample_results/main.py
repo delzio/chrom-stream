@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import json
 from datetime import datetime, timedelta, timezone
 
 from sample_results.sample_result_generator import SampleResultGenerator
@@ -20,7 +21,8 @@ def main():
                                       }, retest_delay_sec=5, batch_duration_sec=10180,
                                       batch_delay_sec=60, execution_time=execution_time)
 
-    print (sample_results)
+    with open(os.path.join(os.getenv("PYTHONPATH"),"data","sample_results_generated.json"), "w") as file:
+              json.dump(sample_results, file, indent=2)
     return
 
 def generate_samples(number_of_runs: int, column_ids: list, sampling_ts_buffer_sec: int,
