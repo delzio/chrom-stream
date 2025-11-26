@@ -54,7 +54,7 @@ def main():
 
 def generate_stream(trend_resolution_hz, stream_rate_adjust_factor, holds,
                    number_of_trends, column_ids, batch_quality, 
-                   noise_scale, column_util_gap, noise_def, streaming_start_ts):
+                   noise_scale, column_util_gap, noise_def, streaming_start_ts, test_mode=False):
     """ Generate Time Series Trend Dataset """
 
     good_trend_path = os.path.join(os.getenv("PYTHONPATH"),"data","good_trend_template.csv")
@@ -89,11 +89,12 @@ def generate_stream(trend_resolution_hz, stream_rate_adjust_factor, holds,
                 try:
                     data_point = next(gen)
                     data_point["time_sec"] = streaming_start_ts + timedelta(seconds=data_point["time_sec"])
-                    print(f"{col_key}: {data_point}")
+                    if not test_mode:
+                        print(f"{col_key}: {data_point}")
                     streaming = True
                 except StopIteration:
                     continue
-            time.sleep(1.0 / stream_rate_adjust_factor)
+            time.sleep(1 / trend_resolution_hz / stream_rate_adjust_factor)
         time.sleep(column_util_gap)
 
 if __name__ == "__main__":

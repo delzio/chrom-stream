@@ -13,11 +13,12 @@ def test_template_dataset(sample_result_fixture):
 
     assert "instrument" in data
 
-    assert "run_metadata" in data
-    assert "temperature_c" in data["run_metadata"]
-    assert "pathlength_range_mm" in data["run_metadata"]
-    assert "min" in data["run_metadata"]["pathlength_range_mm"]
-    assert "max" in data["run_metadata"]["pathlength_range_mm"]
+    assert "test_metadata" in data
+    assert "test_id" in data["test_metadata"]
+    assert "temperature_c" in data["test_metadata"]
+    assert "pathlength_range_mm" in data["test_metadata"]
+    assert "min" in data["test_metadata"]["pathlength_range_mm"]
+    assert "max" in data["test_metadata"]["pathlength_range_mm"]
 
     assert "measurement" in data
     assert "raw_data_points" in data["measurement"]

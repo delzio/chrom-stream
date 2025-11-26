@@ -17,7 +17,7 @@ def main():
     trend_resolution_hz = 0.1
     stream_rate_adjust_factor = 100
     holds = True
-    number_of_runs = 4
+    number_of_runs = 1
     number_of_columns = 4
     anomaly_rate = 0.3
     noise_scale = 1.0
@@ -63,7 +63,6 @@ def main():
         batch_delay_sec=time_between_batches_sec
     )
     batch_duration_sec = (batch_context[cur_col_id][run].simulated_batch_data.iloc[-1]["event_ts"] - batch_context[cur_col_id][run].simulated_batch_data.iloc[0]["event_ts"]).total_seconds()
-    print(batch_duration_sec)
 
     sample_results = build_sample_dataset(
         template_path=sample_template_path, 
