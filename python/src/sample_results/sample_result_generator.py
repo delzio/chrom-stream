@@ -15,7 +15,7 @@ class SampleResultGenerator:
         if noise_def:
             if "absorbance" not in noise_def or "temperature" not in noise_def:
                 raise KeyError("Error with noise_def argument: must include both 'absorbance' and 'temperature' in noise_def dict")
-            elif not isinstance(noise_def["absorbance"], tuple) or not isinstance(noise_def["temperature"], tuple):
+            elif not isinstance(noise_def["absorbance"], (list, tuple)) or not isinstance(noise_def["temperature"], (list, tuple)):
                 raise TypeError("Error with noise_def argument: must be a dict of tuples")
             elif len(noise_def["absorbance"]) != 2 or len(noise_def["temperature"]) != 2:
                 raise ValueError("Error with noise_def argument: each tuple in the dict be of length 2")
@@ -82,7 +82,7 @@ class SampleResultGenerator:
         return trend_params
 
     
-    def generate_sample_result(self, instrument_id: str, sample_id: str, sample_type: str, batch_id: str, measurement_ts: datetime, target_titer: float, bad_run: bool = False):
+    def generate_sample_result(self, test_id: int, instrument_id: str, sample_id: int, sample_type: str, batch_id: int, column_id: str, measurement_ts: datetime, target_titer: float, bad_run: bool = False):
         rng = np.random.default_rng()
 
         # initialize scan_result data
@@ -94,15 +94,17 @@ class SampleResultGenerator:
         simulated_data["sample_metadata"] = {
             "sample_id": sample_id,
             "sample_type": sample_type,
-            "batch_id": batch_id
+            "batch_id": batch_id,
+            "column_id": column_id
         }
-        simulated_data["run_metadata"]["date"] = datetime.strftime(measurement_ts, "%Y-%m-%dT%H:%M:%SZ")
-        simulated_data["run_metadata"]["temperature_c"] = simulated_data["run_metadata"]["temperature_c"] + rng.normal(self.noise_def["temperature"][0], self.noise_def["temperature"][1])
+        simulated_data["test_metadata"]["test_id"] = test_id
+        simulated_data["test_metadata"]["date"] = datetime.strftime(measurement_ts, "%Y-%m-%dT%H:%M:%SZ")
+        simulated_data["test_metadata"]["temperature_c"] = simulated_data["test_metadata"]["temperature_c"] + rng.normal(self.noise_def["temperature"][0], self.noise_def["temperature"][1])
 
         # correct pathlength and absorbance readings for target titer
         if target_titer != 1:
-            simulated_data["run_metadata"]["pathlength_range_mm"]["min"] = simulated_data["run_metadata"]["pathlength_range_mm"]["min"] / target_titer
-            simulated_data["run_metadata"]["pathlength_range_mm"]["max"] = simulated_data["run_metadata"]["pathlength_range_mm"]["max"] / target_titer
+            simulated_data["test_metadata"]["pathlength_range_mm"]["min"] = simulated_data["test_metadata"]["pathlength_range_mm"]["min"] / target_titer
+            simulated_data["test_metadata"]["pathlength_range_mm"]["max"] = simulated_data["test_metadata"]["pathlength_range_mm"]["max"] / target_titer
                 
         # generate simulated raw data 
         for data_point in simulated_data["measurement"]["raw_data_points"]:
@@ -131,3 +133,16 @@ class SampleResultGenerator:
             simulated_data["system_status"]["errors"].append(str(e))
 
         return simulated_data
+    
+    @staticmethod
+    def get_event_generator(simulated_data, test_mode=False):
+        """ Generator function to produce sample result json files at specified frequency """
+
+        # Sort simulated list of sample result files by measurement_ts
+        sorted_data = sorted(simulated_data, key=lambda x: datetime.strptime(x["test_metadata"]["date"], "%Y-%m-%dT%H:%M:%SZ"))
+
+        # Create generator of files from simulated_data
+        for n, result in enumerate(sorted_data):
+            yield result
+            if test_mode and n >= 5:
+                break

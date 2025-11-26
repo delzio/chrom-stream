@@ -24,7 +24,7 @@ def main():
         # quick run settings: generates generates 16 trends across 4 columns within 5 minutes
         config = {}
         config["trend_resolution_hz"] = .1
-        config["stream_rate_hz"] = 10
+        config["stream_rate_adjust_factor"] = 1000
         config["holds"] = False 
         config["number_of_trends"] = 4
         config["column_ids"] = ["chrom_1", "chrom_2", "chrom_3", "chrom_4"]
@@ -35,7 +35,7 @@ def main():
             "chrom_4": ["good", "bad", "good", "good"]
         }
         config["noise_scale"] = 1.0
-        config["column_util_gap"] = 5
+        config["column_util_gap"] = 60
         config["noise_def"] = {
             "uv_mau": (0, 2.0),
             "cond_mScm": (0, 0.15),
@@ -52,7 +52,7 @@ def main():
 
     generate_stream(**config)
 
-def generate_stream(trend_resolution_hz, stream_rate_hz, holds,
+def generate_stream(trend_resolution_hz, stream_rate_adjust_factor, holds,
                    number_of_trends, column_ids, batch_quality, 
                    noise_scale, column_util_gap, noise_def, streaming_start_ts):
     """ Generate Time Series Trend Dataset """
@@ -93,7 +93,7 @@ def generate_stream(trend_resolution_hz, stream_rate_hz, holds,
                     streaming = True
                 except StopIteration:
                     continue
-            time.sleep(1.0 / stream_rate_hz)
+            time.sleep(1.0 / stream_rate_adjust_factor)
         time.sleep(column_util_gap)
 
 if __name__ == "__main__":

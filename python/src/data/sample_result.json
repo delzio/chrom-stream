@@ -7,9 +7,11 @@
     "sample_metadata": {
         "sample_id": "1",
         "sample_type": "Pre-Affinity",
-        "batch_id": "1"
+        "batch_id": "1",
+        "column_id": "1"
     },
-    "run_metadata": {
+    "test_metadata": {
+        "test_id": "1",
         "date": "2025-02-12T14:32:55Z",
         "method": "Slope Spectroscopy",
         "wavelength_nm": 280,

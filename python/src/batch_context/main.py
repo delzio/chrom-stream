@@ -37,7 +37,7 @@ def main():
     build_batch_args = {key: val for key, val in config.items() 
                         if key in ["number_of_runs", "column_ids", "execution_time", "batch_delay_sec"]}
     build_batch_args["template_path"] = template_path
-    batch_context, phase_generators = build_batch_contexts(**build_batch_args)
+    batch_context, phase_generators = build_batch_context(**build_batch_args)
 
     generate_events_args = {key: val for key, val in config.items() 
                             if key in ["number_of_runs", "stream_rate_adjust_factor", "batch_delay_sec"]}
@@ -47,7 +47,7 @@ def main():
 
     return
 
-def build_batch_contexts(number_of_runs, column_ids, template_path, execution_time, batch_delay_sec):
+def build_batch_context(number_of_runs, column_ids, template_path, execution_time, batch_delay_sec):
     """ Generate batch context dataset """
     
     batch_context = {}

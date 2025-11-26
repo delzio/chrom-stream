@@ -1,0 +1,16 @@
+number_of_runs: 4
+column_ids: ["chrom_1", "chrom_2", "chrom_3", "chrom_4"]
+sampling_ts_buffer_sec: 300
+noise_def:
+    absorbance: [0, 0.16]
+    temperature: [0, 1.0]
+noise_scale: 1.0
+batch_quality:
+    chrom_1: ["good", "good", "good", "good"]
+    chrom_2: ["good", "bad", "good", "good"]
+    chrom_3: ["good", "good", "good", "bad"]
+    chrom_4: ["good", "bad", "good", "good"]
+retest_delay_sec: 60
+batch_duration_sec: 10180
+batch_delay_sec: 1000
+stream_rate_adjust_factor: 1
