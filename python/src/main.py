@@ -5,15 +5,19 @@ import random
 from multiprocessing import Process
 
 from time_series_trends.main import generate_stream
-from batch_context.main import generate_batch_context
-from sample_results.main import generate_samples
+from batch_context.main import build_batch_context, generate_batch_context_events
+from sample_results.main import build_sample_dataset, generate_sample_result_events
 
 def main():
+    # Template Dataset Path
+    batch_template_path = os.path.join(os.getenv("PYTHONPATH"),"data","good_trend_template.csv")
+    sample_template_path = os.path.join(os.getenv("PYTHONPATH"), "data", "sample_result.json")
+
     # Define trend requirements:
-    trend_resolution_hz = 1
-    stream_rate_hz = 1
+    trend_resolution_hz = 0.1
+    stream_rate_adjust_factor = 100
     holds = True
-    number_of_runs = 10
+    number_of_runs = 4
     number_of_columns = 4
     anomaly_rate = 0.3
     noise_scale = 1.0
@@ -32,6 +36,10 @@ def main():
         }
     }
 
+    # Define sampling requirements:
+    sampling_ts_buffer_sec = 600
+    retest_delay_sec = 300
+
     # runtime dependent parameters:
     start_time = datetime.now(timezone.utc)
     batch_quality = {}
@@ -45,39 +53,56 @@ def main():
                 batch_quality[cur_col_id].append("bad")
             else:
                 batch_quality[cur_col_id].append("good")
+    
+    # pre-load datasets
+    batch_context, phase_generators = build_batch_context(
+        number_of_runs=number_of_runs, 
+        column_ids=col_ids, 
+        template_path=batch_template_path,
+        execution_time=start_time, 
+        batch_delay_sec=time_between_batches_sec
+    )
+    batch_duration_sec = (batch_context[cur_col_id][run].simulated_batch_data.iloc[-1]["event_ts"] - batch_context[cur_col_id][run].simulated_batch_data.iloc[0]["event_ts"]).total_seconds()
+    print(batch_duration_sec)
 
+    sample_results = build_sample_dataset(
+        template_path=sample_template_path, 
+        number_of_runs=number_of_runs, 
+        column_ids=col_ids, 
+        sampling_ts_buffer_sec=sampling_ts_buffer_sec,
+        noise_def=noise_def["sample_noise"], 
+        noise_scale=noise_scale, 
+        batch_quality=batch_quality, 
+        retest_delay_sec=retest_delay_sec,
+        batch_duration_sec=batch_duration_sec, 
+        batch_delay_sec=time_between_batches_sec, 
+        execution_time=start_time
+    )
 
+    # configure parallel streaming
     processes = [
-        Process(target=generate_stream(
-            trend_resolution_hz=trend_resolution_hz,
-            stream_rate_hz=stream_rate_hz,
-            holds=holds,
-            number_of_trends=number_of_runs,
-            column_ids=col_ids,
-            batch_quality=batch_quality,
-            noise_scale=noise_scale,
-            column_util_gap=time_between_batches_sec,
-            noise_def=noise_def["trend_noise"],
-            streaming_start_ts=start_time
+        Process(target=generate_stream, args=(
+            trend_resolution_hz,
+            stream_rate_adjust_factor,
+            holds,
+            number_of_runs,
+            col_ids,
+            batch_quality,
+            noise_scale,
+            time_between_batches_sec,
+            noise_def["trend_noise"],
+            start_time
         )),
-        Process(target=generate_batch_context(
-            number_of_runs=number_of_runs,
-            column_ids=col_ids,
-            batch_delay_sec=time_between_batches_sec,
-            execution_time=start_time,
-            holds=holds,
+        Process(target=generate_batch_context_events, args=(
+            number_of_runs, 
+            batch_context, 
+            phase_generators, 
+            stream_rate_adjust_factor, 
+            time_between_batches_sec
         )),
-        Process(target=generate_samples(
-            number_of_runs=number_of_runs,
-            column_ids=col_ids,
-            sampling_ts_buffer_sec=10,
-            noise_def=noise_def["sample_noise"],
-            noise_scale=noise_scale,
-            batch_quality=batch_quality,
-            retest_delay_sec=10,
-            batch_duration_sec=10180,
-            batch_delay_sec=time_between_batches_sec,
-            execution_time=start_time
+        Process(target=generate_sample_result_events, args=(
+            sample_results, 
+            stream_rate_adjust_factor
         ))
     ]
 

@@ -72,29 +72,6 @@ def build_batch_context(number_of_runs, column_ids, template_path, execution_tim
 
     return batch_context, phase_generators
 
-def combine_parallel_generators(run_index, phase_generators):
-    """ Combine event generators for columns running in parallel """
-
-    active = [
-        (col_key, gens[run_index])
-        for col_key, gens in phase_generators.items()
-    ]
-
-    while True:
-        new_events = []
-
-        for col_key, gen in active:
-            try:
-                phase_event = next(gen)
-                new_events.append((col_key, phase_event))
-            except StopIteration:
-                continue
-
-        if not new_events:
-            return  # end run
-
-        yield new_events
-
 def generate_batch_context_events(number_of_runs, batch_context, phase_generators, stream_rate_adjust_factor, batch_delay_sec):
     for run in range(number_of_runs):
         active_generators = []
