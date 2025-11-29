@@ -1,0 +1,22 @@
+trend_resolution_hz: 1
+stream_rate_adjust_factor: 1
+holds: true
+number_of_runs: 4
+number_of_columns: 1
+anomaly_rate: 0.3
+noise_scale: 1.0
+time_between_batches_sec: 1000
+noise_def:
+  trend_noise:
+    uv_mau: [0, 2.0]
+    cond_mScm: [0, 0.15]
+    ph: [0, 0.01]
+    flow_mL_min: [0, 300]
+    pressure_bar: [0, 0.01]
+  sample_noise:
+    absorbance: [0, 0.16]
+    temperature: [0, 1.0]
+
+sampling_ts_buffer_sec: 600
+retest_delay_sec: 300
+local_test: False

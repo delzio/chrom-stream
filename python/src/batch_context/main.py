@@ -72,7 +72,7 @@ def build_batch_context(number_of_runs, column_ids, template_path, execution_tim
 
     return batch_context, phase_generators
 
-def generate_batch_context_events(number_of_runs, batch_context, phase_generators, stream_rate_adjust_factor, batch_delay_sec):
+def generate_batch_context_events(number_of_runs, batch_context, phase_generators, stream_rate_adjust_factor, batch_delay_sec, local_test=True):
     for run in range(number_of_runs):
         active_generators = []
         for col_key, gen_list in phase_generators.items():
@@ -89,7 +89,10 @@ def generate_batch_context_events(number_of_runs, batch_context, phase_generator
                     batch_data = batch_context[col_key][run].simulated_batch_data
                     batch_event = batch_data[batch_data["event_ts"] == phase_event["event_ts"]]
                     if not batch_event.empty:
-                        print(f"batch data for {col_key}: {batch_event}")
+                        if local_test:
+                            print(f"batch data for {col_key}: {batch_event}")
+                        else:
+                            publish()
                     print(f"phase data for {col_key}: {phase_event}")
 
                     phase_data = batch_context[col_key][run].simulated_phase_data

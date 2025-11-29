@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from time_series_trends.trend_generator import TrendGenerator
+from pub_sub_utils import publish
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Chrom Sensor Data Stream Simulator")
@@ -54,7 +55,7 @@ def main():
 
 def generate_stream(trend_resolution_hz, stream_rate_adjust_factor, holds,
                    number_of_trends, column_ids, batch_quality, 
-                   noise_scale, column_util_gap, noise_def, streaming_start_ts, test_mode=False):
+                   noise_scale, column_util_gap, noise_def, streaming_start_ts, local_test=False):
     """ Generate Time Series Trend Dataset """
 
     good_trend_path = os.path.join(os.getenv("PYTHONPATH"),"data","good_trend_template.csv")
@@ -88,9 +89,14 @@ def generate_stream(trend_resolution_hz, stream_rate_adjust_factor, holds,
             for col_key, gen in active_generators:
                 try:
                     data_point = next(gen)
-                    data_point["time_sec"] = streaming_start_ts + timedelta(seconds=data_point["time_sec"])
-                    if not test_mode:
+                    timestamp = streaming_start_ts + timedelta(seconds=data_point["time_sec"])
+                    data_point["time_iso"] = timestamp.isoformat()
+                    data_point["time_ns"] = int(timestamp.timestamp() * 1e9)
+                    data_point["chrom_unit"] = col_key
+                    if local_test:
                         print(f"{col_key}: {data_point}")
+                    else:
+                        publish(message=data_point)
                     streaming = True
                 except StopIteration:
                     continue
