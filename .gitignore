@@ -1,6 +1,7 @@
 # environment files
 .env
 .venv/
+.google/
 
 # python files
 __pycache__/
@@ -9,3 +10,12 @@ __pycache__/
 
 # test data extracts
 output_files/
+
+# terraform files
+.terraform/
+.terraform.tfstate.lock.info
+*.tfstate
+*.tfstate.backup
+crash.log
+crash.*.log
+*.plan
