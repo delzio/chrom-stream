@@ -2,7 +2,7 @@ trend_resolution_hz: 1
 stream_rate_adjust_factor: 1
 holds: true
 number_of_runs: 4
-number_of_columns: 1
+number_of_columns: 4
 anomaly_rate: 0.3
 noise_scale: 1.0
 time_between_batches_sec: 1000
