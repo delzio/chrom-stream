@@ -3,3 +3,4 @@ column_ids: ["chrom_1", "chrom_2", "chrom_3", "chrom_4"]
 batch_delay_sec: 1000
 holds: True
 stream_rate_adjust_factor: 1
+local_test: False

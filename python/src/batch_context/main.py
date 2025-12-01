@@ -2,9 +2,12 @@ import os
 import yaml
 import argparse
 import time
+import pandas as pd
 from datetime import datetime, timedelta, timezone
+from google.cloud import storage
 
 from batch_context.batch_context_generator import BatchContextGenerator
+from gcp_utils import parquet_to_gcs
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Batch Context Data Generation Simulator")
@@ -40,7 +43,7 @@ def main():
     batch_context, phase_generators = build_batch_context(**build_batch_args)
 
     generate_events_args = {key: val for key, val in config.items() 
-                            if key in ["number_of_runs", "stream_rate_adjust_factor", "batch_delay_sec"]}
+                            if key in ["number_of_runs", "stream_rate_adjust_factor", "batch_delay_sec", "local_test"]}
     generate_events_args["batch_context"] = batch_context
     generate_events_args["phase_generators"] = phase_generators
     generate_batch_context_events(**generate_events_args)
@@ -73,6 +76,13 @@ def build_batch_context(number_of_runs, column_ids, template_path, execution_tim
     return batch_context, phase_generators
 
 def generate_batch_context_events(number_of_runs, batch_context, phase_generators, stream_rate_adjust_factor, batch_delay_sec, local_test=True):
+    # Initialize client ONCE
+    if not local_test:
+        output_dir = os.environ["PYTHON_OUTPUT_DIR"]
+        gcs_bucket = os.environ["GCS_BATCH_BUCKET"]
+        client = storage.Client()
+        bucket = client.bucket(gcs_bucket)
+    
     for run in range(number_of_runs):
         active_generators = []
         for col_key, gen_list in phase_generators.items():
@@ -87,13 +97,22 @@ def generate_batch_context_events(number_of_runs, batch_context, phase_generator
                 try:
                     phase_event = next(gen)
                     batch_data = batch_context[col_key][run].simulated_batch_data
-                    batch_event = batch_data[batch_data["event_ts"] == phase_event["event_ts"]]
+                    batch_event = batch_data[batch_data["event_ts"] == phase_event["event_ts"]].reset_index(drop=True)
                     if not batch_event.empty:
                         if local_test:
                             print(f"batch data for {col_key}: {batch_event}")
                         else:
-                            publish()
-                    print(f"phase data for {col_key}: {phase_event}")
+                            # Upload to GCS bucket
+                            file_path = os.path.join(output_dir, f"batch_{batch_event["batch_id"][0]}_context_{batch_event["event_ts"][0].strftime('%Y%m%dT%H%M%S')}.parquet")
+                            parquet_to_gcs(data=batch_event, temp_file_path=file_path, gcs_file_path="raw/batch", bucket=bucket)
+                    
+                    if local_test:
+                        print(f"phase data for {col_key}: {phase_event}")
+                    else:
+                        # Upload to GCS bucket
+                        file_path = os.path.join(output_dir, f"batch_{batch_data["batch_id"][0]}_phase_{phase_event["phase"]}_context_{phase_event["event_ts"].strftime('%Y%m%dT%H%M%S')}.parquet")
+                        phase_df = pd.DataFrame([phase_event])
+                        parquet_to_gcs(data=phase_df, temp_file_path=file_path, gcs_file_path="raw/phase", bucket=bucket)
 
                     phase_data = batch_context[col_key][run].simulated_phase_data
                     cur_phase_idx = phase_data.index[

@@ -13,4 +13,5 @@ batch_quality:
 retest_delay_sec: 60
 batch_duration_sec: 10180
 batch_delay_sec: 1000
-stream_rate_adjust_factor: 1
+stream_rate_adjust_factor: 500
+local_test: False

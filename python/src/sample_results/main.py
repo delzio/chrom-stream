@@ -1,3 +1,4 @@
+from google.cloud import storage
 import os
 import pandas as pd
 import json
@@ -7,6 +8,7 @@ import argparse
 from datetime import datetime, timedelta, timezone
 
 from sample_results.sample_result_generator import SampleResultGenerator
+from gcp_utils import json_to_gcs
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Sample Result File Generation Simulator")
@@ -42,20 +44,22 @@ def main():
         config["batch_duration_sec"] = 10180
         config["batch_delay_sec"] = 60
         config["stream_rate_adjust_factor"] = 1000
-    else:
+    elif args.config:
         config = load_config(args.config)
+    else:
+        raise ValueError("Either --config must be provided or --quick_run must be set.")
 
     config["template_path"] = os.path.join(os.getenv("PYTHONPATH"), "data", "sample_result.json")
     config["execution_time"] = datetime.now(timezone.utc)
 
-    build_sample_dataset_args = {key: value for key, value in config if key != "stream_rate_adjust_factor"}
+    build_sample_dataset_args = {key: value for key, value in config.items() if key not in ["stream_rate_adjust_factor", "local_test"]}
 
     sample_results = build_sample_dataset(**build_sample_dataset_args)
 
     #with open(os.path.join(os.getenv("PYTHONPATH"),"output_files","sample_results_generated.json"), "w") as file:
     #          json.dump(sample_results, file, indent=2)
 
-    generate_sample_result_events(sample_results=sample_results, stream_rate_adjust_factor=config["stream_rate_adjust_factor"])
+    generate_sample_result_events(sample_results=sample_results, stream_rate_adjust_factor=config["stream_rate_adjust_factor"], local_test=config["local_test"])
 
     return
 
@@ -108,8 +112,15 @@ def build_sample_dataset(template_path: str, number_of_runs: int, column_ids: li
 
     return sample_results
 
-def generate_sample_result_events(sample_results, stream_rate_adjust_factor):
+def generate_sample_result_events(sample_results, stream_rate_adjust_factor, local_test=True):
     """ Generate sample result events """ 
+
+    # Initialize client ONCE
+    if not local_test:
+        output_dir = os.environ["PYTHON_OUTPUT_DIR"]
+        gcs_bucket = os.environ["GCS_SAMPLE_BUCKET"]
+        client = storage.Client()
+        bucket = client.bucket(gcs_bucket)
 
     sorted_sample_results = sorted(sample_results, key=lambda x: datetime.strptime(x["test_metadata"]["date"], "%Y-%m-%dT%H:%M:%SZ"))
     sample_event_generator = SampleResultGenerator.get_event_generator(simulated_data=sorted_sample_results)
@@ -120,7 +131,13 @@ def generate_sample_result_events(sample_results, stream_rate_adjust_factor):
         streaming = False
 
         try:
-            print(f"Sending sample data for {sample_event["sample_metadata"]}")
+            if local_test:
+                print(f"Sending sample data for {sample_event["sample_metadata"]}")
+            else: 
+                # Upload to GCS bucket
+                file_path = os.path.join(output_dir, f"sample_{sample_event["sample_metadata"]["sample_id"]}_results_{sample_event["test_metadata"]["date"]}.json")
+                json_to_gcs(data=sample_event, temp_file_path=file_path, gcs_file_path="raw/", bucket=bucket)
+
             cur_test_ts = datetime.strptime(sample_event["test_metadata"]["date"], "%Y-%m-%dT%H:%M:%SZ")
 
             sample_event = next(sample_event_generator)

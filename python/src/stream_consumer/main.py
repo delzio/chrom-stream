@@ -4,7 +4,7 @@ import pandas as pd
 from google.cloud import pubsub_v1
 from influxdb_client_3 import InfluxDBClient3, Point
 
-from pub_sub_utils import subscribe
+from python.src.gcp_utils import subscribe
 
 # INFLUXDB CONFIG
 TOKEN = os.environ["INFLUXDB_WRITE_TOKEN"]
