@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from time_series_trends.trend_generator import TrendGenerator
-from python.src.gcp_utils import publish
+from gcp_utils import publish
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Chrom Sensor Data Stream Simulator")

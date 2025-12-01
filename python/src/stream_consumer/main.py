@@ -1,19 +1,26 @@
 import os
 import json
 import pandas as pd
-from google.cloud import pubsub_v1
+from google.cloud import pubsub_v1, storage
 from influxdb_client_3 import InfluxDBClient3, Point
 
-from python.src.gcp_utils import subscribe
+from gcp_utils import subscribe, parquet_to_gcs
 
 # INFLUXDB CONFIG
 TOKEN = os.environ["INFLUXDB_WRITE_TOKEN"]
 ORG = "Dev"
 HOST = "https://us-east-1-1.aws.cloud2.influxdata.com"
 DATABASE = os.environ["INFLUXDB_BUCKET"]
-client = InfluxDBClient3(host=HOST, token=TOKEN, org=ORG)
+influx_client = InfluxDBClient3(host=HOST, token=TOKEN, org=ORG)
+
+# GCS CONFIG
+OUTPUT_DIR = os.environ["PYTHON_OUTPUT_DIR"]
+GCS_BUCKET = os.environ["GCS_TREND_BUCKET"]
+gcs_client = storage.Client()
+BUCKET = gcs_client.bucket(GCS_BUCKET)
 
 # INITIALIZE GLOBALS
+buffer_limit = 1000
 buffer = {}
 last_timestamp_ns = {}
 last_flow_rate = {}
@@ -64,7 +71,7 @@ def handle_event(event: dict) -> None:
         .field("totalized_column_volumes", tot_col_vol)
         .time(cur_ts) 
     )
-    client.write(database=DATABASE, record=point)
+    influx_client.write(database=DATABASE, record=point)
     print("data point submitted to influxdb")
 
 
@@ -77,16 +84,27 @@ def process_message(message: pubsub_v1.subscriber.message.Message) -> None:
         # buffer data by chrom unit
         if chrom_unit not in buffer:
             buffer[chrom_unit] = []
-        else:
-            buffer[chrom_unit].append(data)
         
-        # sort buffer by timestamp
-        buffer[chrom_unit] = sorted(buffer[chrom_unit], key=lambda x: int(x["time_ns"]))
+        buffer[chrom_unit].append(data)
+    
 
-        # ensure buffered events are handled in order
-        for event in buffer[chrom_unit]:
-            if last_timestamp_ns.get(chrom_unit, 0) < int(event["time_ns"]):
-                handle_event(event)
+        # handle only new data for streaming
+        if last_timestamp_ns.get(chrom_unit, 0) < int(data["time_ns"]):
+            handle_event(data)
+
+        # handle buffered data for raw storage
+        if len(buffer[chrom_unit]) >= buffer_limit:
+            # sort buffer by timestamp
+            df = pd.DataFrame(buffer[chrom_unit])
+            df.sort_values("time_ns", inplace=True)
+            # submit to GCS
+            ts = data["time_iso"].replace(":", "-")
+            file_path = os.path.join(OUTPUT_DIR, f"{chrom_unit}_trends_{ts}.parquet")
+            parquet_to_gcs(data=df, 
+                           temp_file_path=file_path, 
+                           gcs_file_path=f"raw/{chrom_unit}",
+                           bucket=BUCKET)
+            buffer[chrom_unit] = []
         
         message.ack()
     except Exception as e:
