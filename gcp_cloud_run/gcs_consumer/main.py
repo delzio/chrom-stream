@@ -1,22 +1,23 @@
 import os
 import json
+import pandas as pd
 from typing import Callable
-from google.cloud import pubsub_v1
-from influxdb_client_3 import InfluxDBClient3, Point
+from google.cloud import pubsub_v1, storage
+from google.cloud.storage.bucket import Bucket
 
 # GCP CONFIG
 CREDENTIALS = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
 PROJECT_ID = os.environ["GCP_PROJECT_ID"]
 SUBSCRIPTION_ID = os.environ["PUBSUB_SUBSCRIPTION_ID"]
-
-# INFLUXDB CONFIG
-TOKEN = os.environ["INFLUXDB_WRITE_TOKEN"]
-ORG = "Dev"
-HOST = "https://us-east-1-1.aws.cloud2.influxdata.com"
-DATABASE = os.environ["INFLUXDB_BUCKET"]
-influx_client = InfluxDBClient3(host=HOST, token=TOKEN, org=ORG)
+OUTPUT_DIR = os.environ["PYTHON_OUTPUT_DIR"]
+GCS_BUCKET = os.environ["GCS_TREND_BUCKET"]
+gcs_client = storage.Client()
+BUCKET = gcs_client.bucket(GCS_BUCKET)
 
 # INITIALIZE GLOBALS
+BUFFER_TIME_LIMIT = 900 # 15 minutes
+BUFFER_SIZE_LIMIT = 1000 # records
+BUFFER = {}
 last_timestamp_ns = {}
 last_flow_rate = {}
 totalized_volume_ml = {}
@@ -42,7 +43,6 @@ def subscribe(callback_fn: Callable) -> None:
     except KeyboardInterrupt:
         print("Stopped")
 
-
 def process_message(message: pubsub_v1.subscriber.message.Message) -> None:
     """ Triggered automatically whenever a Pub/Sub message arrives """
     try:
@@ -53,21 +53,17 @@ def process_message(message: pubsub_v1.subscriber.message.Message) -> None:
         if last_timestamp_ns.get(chrom_unit, 0) < int(data["time_ns"]):
             event = handle_event(data)
 
-            point = (
-                Point("chromatography")
-                .tag("instrument", event["chrom_unit"])
-                .field("uv_mau", event["uv_mau"])
-                .field("cond_mScm", event["cond_mScm"])
-                .field("ph", event["ph"])
-                .field("flow_mL_min", event["flow_mL_min"])
-                .field("pressure_bar", event["pressure_bar"])
-                .field("totalized_volume_ml", event["totalized_volume_ml"])
-                .field("totalized_column_volumes", event["totalized_column_volumes"])
-                .time(int(event["time_ns"])) 
-            )
+            if chrom_unit not in BUFFER:
+                BUFFER[chrom_unit] = []
+            BUFFER[chrom_unit].append(event)
 
-            influx_client.write(database=DATABASE, record=point)
-            print("data point submitted to influxdb")
+            if len(BUFFER[chrom_unit]) >= BUFFER_SIZE_LIMIT:
+                parquet_to_gcs(
+                    data=pd.DataFrame(BUFFER[chrom_unit]),
+                    gcs_file_path=f"raw/{chrom_unit}/{chrom_unit}_trends_{event['time_iso'].replace(':', '-')}.parquet",
+                    bucket=BUCKET
+                ) 
+                BUFFER[chrom_unit] = []
         
         message.ack()
     except Exception as e:
@@ -111,6 +107,23 @@ def handle_event(event: dict) -> None:
     event["totalized_column_volumes"] = tot_col_vol
 
     return event
+
+def parquet_to_gcs(data: pd.DataFrame, gcs_file_path: str, bucket: Bucket, verbose: bool = True) -> None:
+    """ Upload local parquet file to GCS bucket """
+    
+    # Create an in-memory bytes buffer
+    buffer = io.BytesIO()
+    data.to_parquet(buffer, index=False)
+
+    # Reset buffer pointer before upload
+    buffer.seek(0)
+
+    # Upload to GCS bucket
+    blob = bucket.blob(gcs_file_path)
+    blob.upload_from_file(buffer, content_type="application/octet-stream")
+
+    if verbose:
+        print(f"Uploaded {len(data)} rows to GCS at path: {gcs_file_path}")
 
 if __name__ == "__main__":
     main()

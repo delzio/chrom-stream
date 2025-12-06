@@ -59,7 +59,7 @@ resource "google_storage_bucket" "sample_bucket" {
   }
 }
 
-// Pub/Sub For Streaming Sensor Data to InfluxDB
+// Pub/Sub For Streaming Sensor Data to InfluxDB and batching data to GCS
 resource "google_pubsub_topic" "chrom_stream_topic" {
   name = "chrom-sensor-readings"
 
@@ -72,6 +72,19 @@ resource "google_pubsub_subscription" "chrom_stream_sub" {
 
   # Ensure order for consumer integration calculations
   enable_message_ordering = true
+
+  ack_deadline_seconds       = 10
+  message_retention_duration = "86400s"
+
+  # pull-mode
+  expiration_policy {
+    ttl = "604800s" # 7 days
+  }
+}
+
+resource "google_pubsub_subscription" "chrom_stream_sub" {
+  name  = "chrom-batched-readings-sub"
+  topic = google_pubsub_topic.chrom_stream_topic.name
 
   ack_deadline_seconds       = 10
   message_retention_duration = "86400s"
