@@ -6,6 +6,7 @@ import time
 import yaml
 import argparse
 from datetime import datetime, timedelta, timezone
+from multiprocessing import Process, Queue
 
 from sample_results.sample_result_generator import SampleResultGenerator
 from gcp_utils import json_to_gcs
@@ -22,13 +23,14 @@ def load_config(config_path):
         return yaml.safe_load(file)
 
 def main():
-    # run the main script
+
+    # load configuration arguments
     args = parse_args()
     if args.quick_run:
         config = {}
-        config["number_of_runs"] = 4
+        config["number_of_runs"] = 2
         config["column_ids"] = ["chrom_1", "chrom_2", "chrom_3", "chrom_4"]
-        config["sampling_ts_buffer_sec"] = 10
+        config["sampling_ts_buffer_sec"] = 0
         config["noise_def"] = {
             "absorbance": (0, 0.16),
             "temperature": (0, 1.0)
@@ -40,26 +42,47 @@ def main():
             "chrom_3": ["good", "good", "good", "bad"],
             "chrom_4": ["good", "bad", "good", "good"]
         }
-        config["retest_delay_sec"] = 60
+        config["retest_delay_sec"] = 0
         config["batch_duration_sec"] = 10180
-        config["batch_delay_sec"] = 60
+        config["batch_delay_sec"] = 0
         config["stream_rate_adjust_factor"] = 1000
+        config["local_test"] = True
     elif args.config:
         config = load_config(args.config)
     else:
         raise ValueError("Either --config must be provided or --quick_run must be set.")
 
+    # runtime dependent parameters:
     config["template_path"] = os.path.join(os.getenv("PYTHONPATH"), "data", "sample_result.json")
     config["execution_time"] = datetime.now(timezone.utc)
+    sample_queue = Queue()
 
+    # build sample result dataset
     build_sample_dataset_args = {key: value for key, value in config.items() if key not in ["stream_rate_adjust_factor", "local_test"]}
-
     sample_results = build_sample_dataset(**build_sample_dataset_args)
 
-    #with open(os.path.join(os.getenv("PYTHONPATH"),"output_files","sample_results_generated.json"), "w") as file:
-    #          json.dump(sample_results, file, indent=2)
+    # Setup GCS upload process or local print based on test mode
+    if not config["local_test"]:
+        gcs_bucket = os.environ["GCS_SAMPLE_BUCKET"]
+        client = storage.Client()
+        bucket = client.bucket(gcs_bucket)
+        sample_process = Process(target=send_sample_to_gcs, args=(sample_queue, bucket))
+    else:
+        sample_process = Process(target=print_sample, args=(sample_queue,))
 
-    generate_sample_result_events(sample_results=sample_results, stream_rate_adjust_factor=config["stream_rate_adjust_factor"], local_test=config["local_test"])
+    # Start processes to generate events and send to GCS
+    processes = [
+        Process(target=generate_sample_result_events, args=(
+            sample_queue,
+            sample_results,
+            config["stream_rate_adjust_factor"]
+        )),
+        sample_process
+    ]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join()
 
     return
 
@@ -112,15 +135,8 @@ def build_sample_dataset(template_path: str, number_of_runs: int, column_ids: li
 
     return sample_results
 
-def generate_sample_result_events(sample_results, stream_rate_adjust_factor, local_test=True):
+def generate_sample_result_events(sample_queue, sample_results, stream_rate_adjust_factor):
     """ Generate sample result events """ 
-
-    # Initialize client ONCE
-    if not local_test:
-        output_dir = os.environ["PYTHON_OUTPUT_DIR"]
-        gcs_bucket = os.environ["GCS_SAMPLE_BUCKET"]
-        client = storage.Client()
-        bucket = client.bucket(gcs_bucket)
 
     sorted_sample_results = sorted(sample_results, key=lambda x: datetime.strptime(x["test_metadata"]["date"], "%Y-%m-%dT%H:%M:%SZ"))
     sample_event_generator = SampleResultGenerator.get_event_generator(simulated_data=sorted_sample_results)
@@ -131,12 +147,7 @@ def generate_sample_result_events(sample_results, stream_rate_adjust_factor, loc
         streaming = False
 
         try:
-            if local_test:
-                print(f"Sending sample data for {sample_event["sample_metadata"]}")
-            else: 
-                # Upload to GCS bucket
-                file_path = os.path.join(output_dir, f"sample_{sample_event["sample_metadata"]["sample_id"]}_results_{sample_event["test_metadata"]["date"]}.json")
-                json_to_gcs(data=sample_event, temp_file_path=file_path, gcs_file_path="raw/", bucket=bucket)
+            sample_queue.put(sample_event)
 
             cur_test_ts = datetime.strptime(sample_event["test_metadata"]["date"], "%Y-%m-%dT%H:%M:%SZ")
 
@@ -147,6 +158,9 @@ def generate_sample_result_events(sample_results, stream_rate_adjust_factor, loc
             streaming = True
         except StopIteration:
             continue
+
+    # signal completion to queue
+    sample_queue.put("EOF")
 
 
 def collect_results_by_sample(sample_result_generator, test_id, instrument_id, sample_id, sample_type, batch_id, column_id, sample_ts, target_titer, retest_delay_sec, bad_run=False):
@@ -188,6 +202,25 @@ def collect_results_by_sample(sample_result_generator, test_id, instrument_id, s
         test_failed = retest_sample_result["system_status"]["scan_result"] == "fail"
 
     return test_results
+
+def send_sample_to_gcs(sample_queue, bucket):
+    """ Submit sample result event to GCS """
+
+    while True:
+        sample_event = sample_queue.get()
+        if sample_event == "EOF":
+            break
+        gcs_file_path = f"raw/sample_{sample_event['sample_metadata']['sample_id']}_results_{sample_event['test_metadata']['date']}.json"
+        json_to_gcs(data=sample_event, gcs_file_path=gcs_file_path, bucket=bucket)
+        
+def print_sample(sample_queue):
+    """ Print batch or phase context event from queue """
+
+    while True:
+        sample_event = sample_queue.get()
+        if sample_event == "EOF":
+            break
+        print(f"sample data: {sample_event["sample_metadata"]}")
 
 if __name__ == "__main__":
     main()

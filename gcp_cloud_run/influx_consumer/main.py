@@ -3,6 +3,7 @@ import json
 import pandas as pd
 from google.cloud import pubsub_v1, storage
 from influxdb_client_3 import InfluxDBClient3, Point
+from multiprocessing import Process, Queue
 
 from gcp_utils import subscribe, parquet_to_gcs
 
@@ -20,11 +21,38 @@ gcs_client = storage.Client()
 BUCKET = gcs_client.bucket(GCS_BUCKET)
 
 # INITIALIZE GLOBALS
+local_test = True
+stream_trend_queue = Queue()
+batch_trend_queue = Queue()
 buffer_limit = 1000
 buffer = {}
 last_timestamp_ns = {}
 last_flow_rate = {}
 totalized_volume_ml = {}
+
+def main():
+
+    # Start Pub/Sub subscription to receive events
+    subscribe(callback_fn=process_message)
+
+    # Start processes to handle streaming and batched trend data
+    if local_test:
+        processes = [
+            Process(target=print_trend_event, args=(stream_trend_queue, "stream")),
+            Process(target=print_trend_event, args=(batch_trend_queue, "batch"))
+        ]
+    else:
+        processes = [
+            Process(target=send_points_to_influxdb, args=(stream_trend_queue,)),
+            Process(target=send_batched_trend_to_gcs, args=(batch_trend_queue, BUCKET))
+        ]
+    
+    for process in processes:
+        process.start() 
+    for process in processes:
+        process.join()
+
+    return
 
 def handle_event(event: dict) -> None:
     """ Process individual event from Pub/Sub """
@@ -71,8 +99,21 @@ def handle_event(event: dict) -> None:
         .field("totalized_column_volumes", tot_col_vol)
         .time(cur_ts) 
     )
-    influx_client.write(database=DATABASE, record=point)
-    print("data point submitted to influxdb")
+
+    stream_trend_queue.put(point)
+
+    # handle buffered data for raw storage
+    event_with_tot_calcs = event.copy()
+    event_with_tot_calcs["totalized_volume_ml"] = totalized_volume_ml[chrom_unit]
+    event_with_tot_calcs["totalized_column_volumes"] = tot_col_vol
+
+    if chrom_unit not in buffer:
+        buffer[chrom_unit] = []
+    buffer[chrom_unit].append(event_with_tot_calcs)
+
+    if len(buffer[chrom_unit]) >= buffer_limit:
+        batch_trend_queue.put(buffer[chrom_unit])
+        buffer[chrom_unit] = []
 
 
 def process_message(message: pubsub_v1.subscriber.message.Message) -> None:
@@ -81,38 +122,42 @@ def process_message(message: pubsub_v1.subscriber.message.Message) -> None:
         data = json.loads(message.data.decode("utf-8"))
         chrom_unit = data["chrom_unit"]
 
-        # buffer data by chrom unit
-        if chrom_unit not in buffer:
-            buffer[chrom_unit] = []
-        
-        buffer[chrom_unit].append(data)
-    
-
         # handle only new data for streaming
         if last_timestamp_ns.get(chrom_unit, 0) < int(data["time_ns"]):
             handle_event(data)
-
-        # handle buffered data for raw storage
-        if len(buffer[chrom_unit]) >= buffer_limit:
-            # sort buffer by timestamp
-            df = pd.DataFrame(buffer[chrom_unit])
-            df.sort_values("time_ns", inplace=True)
-            # submit to GCS
-            ts = data["time_iso"].replace(":", "-")
-            file_path = os.path.join(OUTPUT_DIR, f"{chrom_unit}_trends_{ts}.parquet")
-            parquet_to_gcs(data=df, 
-                           temp_file_path=file_path, 
-                           gcs_file_path=f"raw/{chrom_unit}",
-                           bucket=BUCKET)
-            buffer[chrom_unit] = []
         
         message.ack()
     except Exception as e:
         print(f"Error collecting data from pub/sub: {e}")
 
+def send_points_to_influxdb(stream_trend_queue):
+    """ Send streaming trend data points to InfluxDB """
 
-def main():
-    subscribe(callback_fn=process_message)
+    while True:
+        data_point = stream_trend_queue.get()
+        influx_client.write(database=DATABASE, record=data_point)
+        print("data point submitted to influxdb")
+
+def send_batched_trend_to_gcs(batch_trend_queue, bucket):
+    """ Send batched trend data to GCS """
+
+    while True:
+        batched_data = batch_trend_queue.get()
+        chrom_unit = list(batched_data.keys())[0]
+        df = pd.DataFrame(batched_data[chrom_unit])
+        ts = df["time_iso"].replace(":", "-")
+        gcs_file_path = f"raw/{chrom_unit}/{chrom_unit}_trends_{ts}.parquet"
+        parquet_to_gcs(data=df, gcs_file_path=gcs_file_path, bucket=bucket)
+
+def print_trend_event(trend_queue, event_type):
+    """ Print stream or batched trend event from queue """
+
+    while True:
+        trend_event = trend_queue.get()
+        if event_type == "stream":
+            print(f"streaming data point: {trend_event}")
+        else:
+            print(f"batched trend data: {trend_event.head()}")
 
 
 if __name__ == "__main__":

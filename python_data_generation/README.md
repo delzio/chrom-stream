@@ -37,7 +37,8 @@ Sample Results:
 ### How to Run
 
 Test Run (quick, print data to console only):
-1. cd into chrom-stream/python
+
+1. cd into chrom-stream/python_data_generation
 2. Test with:
     ```bash
     PYTHONPATH=src python src/main.py --quick_run
@@ -49,7 +50,7 @@ Test Run (quick, print data to console only):
 Production Run:
 
 WARNING: this will send data to your GCP project, be cognicent of the amount of data you are sending to GCP and the associated cloud storage costs
-1. cd into chrom-stream/python
+1. cd into chrom-stream/python_data_generation
 2. adjust argument settings in config.yml
 3. Run with:
     ```bash
@@ -57,3 +58,17 @@ WARNING: this will send data to your GCP project, be cognicent of the amount of 
     ```
 4. Data will start flowing into GCP
 5. Cancel with CTRL + C
+
+
+Testing Data Generation Modules Individually:
+
+1. cd into chrom-stream/python_data_generation
+2. Quick-run test with:
+    ```bash
+    PYTHONPATH=src python src/<module i.e. batch_context>/main.py --quick_run
+    ```
+3. Test with writing to GCP with:
+    ```bash
+    PYTHONPATH=src python src/<module i.e. batch_context>/main.py --config src/<module i.e. batch_context>/config.yml
+    ```
+4. Cancel with CTRL + C

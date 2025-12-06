@@ -1,5 +1,5 @@
 trend_resolution_hz: 1
-stream_rate_adjust_factor: 1
+stream_rate_adjust_factor: 10
 holds: true
 number_of_trends: 4
 column_ids: ["chrom_1", "chrom_2", "chrom_3", "chrom_4"]

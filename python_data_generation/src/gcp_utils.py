@@ -4,6 +4,7 @@ from typing import Callable
 import json
 import os
 import pandas as pd
+import io
 
 # GCP
 CREDENTIALS = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
@@ -44,25 +45,40 @@ def subscribe(callback_fn: Callable) -> None:
     except KeyboardInterrupt:
         print("Stopped")
 
-def parquet_to_gcs(data: pd.DataFrame, temp_file_path: str, gcs_file_path: str, bucket: Bucket, verbose: bool = True) -> None:
+def parquet_to_gcs(data: pd.DataFrame, gcs_file_path: str, bucket: Bucket, verbose: bool = True) -> None:
     """ Upload local parquet file to GCS bucket """
+    
+    # Create an in-memory bytes buffer
+    buffer = io.BytesIO()
+    data.to_parquet(buffer, index=False)
 
-    data.to_parquet(temp_file_path, index=False)
-    # upload to GCS batch bucket
-    blob = bucket.blob(os.path.join(gcs_file_path, os.path.basename(temp_file_path)))
-    blob.upload_from_filename(temp_file_path)
+    # Reset buffer pointer before upload
+    buffer.seek(0)
+
+    # Upload to GCS bucket
+    blob = bucket.blob(gcs_file_path)
+    blob.upload_from_file(buffer, content_type="application/octet-stream")
+
     if verbose:
-        print(f"Uploaded data: {data} to GCS bucket")
+        print(f"Uploaded {len(data)} rows to GCS at path: {gcs_file_path}")
 
-def json_to_gcs(data: dict, temp_file_path: str, gcs_file_path: str, bucket: Bucket, verbose: bool = True) -> None:
+
+def json_to_gcs(data: dict, gcs_file_path: str, bucket: Bucket, verbose: bool = True) -> None:
     """ Upload local json file to GCS bucket """
 
-    with open(temp_file_path, "w") as file:
-        json.dump(data, file, indent=2)
-    # upload to GCS batch bucket
-    blob = bucket.blob(os.path.join(gcs_file_path, os.path.basename(temp_file_path)))
-    blob.upload_from_filename(temp_file_path)
+    json_str = json.dumps(data, indent=2)
+
+    # Write JSON string to an in-memory binary buffer
+    buffer = io.BytesIO(json_str.encode("utf-8"))
+
+    # Reset buffer pointer before upload
+    buffer.seek(0)
+
+    # Upload to GCS bucket
+    blob = bucket.blob(gcs_file_path)
+    blob.upload_from_file(buffer, content_type="application/json")
+
     if verbose:
-        print(f"Uploaded json data (keys: {data.keys()}) to GCS bucket")
+        print(f"Uploaded sample result json to GCS bucket: {data["sample_metadata"]}")
 
 
