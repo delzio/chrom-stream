@@ -156,7 +156,7 @@ def send_event_to_gcs(event_queue, bucket, event_type):
 
     while True:
         event = event_queue.get()
-        if event == "EOF":
+        if isinstance(event, str) and event == "EOF":
             break
         phase_str = f"phase_{event['phase'][0]}_" if event_type == "phase" else ""
         ts = event["event_ts"][0].strftime("%Y-%m-%dT%H-%M-%S")

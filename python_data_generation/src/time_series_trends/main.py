@@ -116,6 +116,8 @@ def generate_stream(trend_queue, trend_resolution_hz, stream_rate_adjust_factor,
         for col_key, gen_list in trend_gen_dict.items():
             gen = gen_list[trend_no]
             active_generators.append((col_key, gen))
+
+        batch_start_ts = streaming_start_ts + trend_no * (timedelta(seconds=max(simulated_data["time_sec"])) + timedelta(seconds=column_util_gap))
         
         streaming = True
         while streaming:
@@ -123,7 +125,7 @@ def generate_stream(trend_queue, trend_resolution_hz, stream_rate_adjust_factor,
             for col_key, gen in active_generators:
                 try:
                     data_point = next(gen)
-                    timestamp = streaming_start_ts + timedelta(seconds=data_point["time_sec"])
+                    timestamp = batch_start_ts + timedelta(seconds=data_point["time_sec"])
                     data_point["time_iso"] = timestamp.isoformat()
                     data_point["time_ns"] = int(timestamp.timestamp() * 1e9)
                     data_point["chrom_unit"] = col_key
