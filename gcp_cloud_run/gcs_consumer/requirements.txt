@@ -2,6 +2,4 @@ pyarrow
 datetime
 pandas
 google-cloud-storage
-google-cloud-pubsub
-influxdb-client-3
-typing
+flask

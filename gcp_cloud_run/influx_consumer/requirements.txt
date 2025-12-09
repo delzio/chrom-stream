@@ -1,7 +1,4 @@
-pyarrow
 datetime
-pandas
 google-cloud-storage
-google-cloud-pubsub
-influxdb-client-3
-typing
+influxdb3-python
+flask

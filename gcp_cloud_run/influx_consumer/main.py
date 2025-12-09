@@ -1,13 +1,11 @@
 import os
 import json
-from typing import Callable
-from google.cloud import pubsub_v1
+import base64
+from flask import Flask, request
 from influxdb_client_3 import InfluxDBClient3, Point
 
 # GCP CONFIG
-CREDENTIALS = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
 PROJECT_ID = os.environ["GCP_PROJECT_ID"]
-SUBSCRIPTION_ID = os.environ["PUBSUB_SUBSCRIPTION_ID"]
 
 # INFLUXDB CONFIG
 TOKEN = os.environ["INFLUXDB_WRITE_TOKEN"]
@@ -21,57 +19,64 @@ last_timestamp_ns = {}
 last_flow_rate = {}
 totalized_volume_ml = {}
 
-def main():
 
-    # Start Pub/Sub subscription to receive events
-    subscribe(callback_fn=process_message)
+# Cloud Run HTTP entry point
+app = Flask(__name__)
 
-    return
+@app.route("/", methods=["POST"])
+def receive_pubsub_message():
+    """ Triggered automatically whenever a Pub/Sub message arrives via HTTP """
+    envelope = request.get_json()
+    
+    if not envelope:
+        msg = "No Pub/Sub message received"
+        print(f"error: {msg}")
+        return f"Bad Request: {msg}", 400
+    
+    msg = envelope["message"]
 
-def subscribe(callback_fn: Callable) -> None:
-    subscriber = pubsub_v1.SubscriberClient()
-    subscription_path = subscriber.subscription_path(PROJECT_ID, SUBSCRIPTION_ID)
-
-    print(f"Listening for messages from: {subscription_path}")
-    subscriber.subscribe(subscription_path, callback=callback_fn)
-
-    # Keep process running
     try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        print("Stopped")
-
-
-def process_message(message: pubsub_v1.subscriber.message.Message) -> None:
-    """ Triggered automatically whenever a Pub/Sub message arrives """
-    try:
-        data = json.loads(message.data.decode("utf-8"))
-        chrom_unit = data["chrom_unit"]
+        data = base64.b64decode(msg["data"]).decode("utf-8")
+        event = json.loads(data)
 
         # handle only new data for streaming
-        if last_timestamp_ns.get(chrom_unit, 0) < int(data["time_ns"]):
-            event = handle_event(data)
-
-            point = (
-                Point("chromatography")
-                .tag("instrument", event["chrom_unit"])
-                .field("uv_mau", event["uv_mau"])
-                .field("cond_mScm", event["cond_mScm"])
-                .field("ph", event["ph"])
-                .field("flow_mL_min", event["flow_mL_min"])
-                .field("pressure_bar", event["pressure_bar"])
-                .field("totalized_volume_ml", event["totalized_volume_ml"])
-                .field("totalized_column_volumes", event["totalized_column_volumes"])
-                .time(int(event["time_ns"])) 
-            )
-
-            influx_client.write(database=DATABASE, record=point)
-            print("data point submitted to influxdb")
-        
-        message.ack()
+        process_data(event)
+        return "", 200
+    
     except Exception as e:
-        print(f"Error collecting data from pub/sub: {e}")
+        print(f"Error processing data from pub/sub: {e}")
+        return f"Interal error: {e}", 500
+
+
+def process_data(data: dict) -> None:
+    """ Triggered automatically whenever a Pub/Sub message arrives """
+    
+    chrom_unit = data["chrom_unit"]
+    cur_ts = int(data["time_ns"])
+
+    # handle only new data for streaming
+    if last_timestamp_ns.get(chrom_unit, 0) >= cur_ts:
+        print(f"Skipping old event for {chrom_unit}")
+        return
+    
+    event = handle_event(data)
+
+    point = (
+        Point("chromatography")
+        .tag("instrument", event["chrom_unit"])
+        .field("uv_mau", event["uv_mau"])
+        .field("cond_mScm", event["cond_mScm"])
+        .field("ph", event["ph"])
+        .field("flow_mL_min", event["flow_mL_min"])
+        .field("pressure_bar", event["pressure_bar"])
+        .field("totalized_volume_ml", event["totalized_volume_ml"])
+        .field("totalized_column_volumes", event["totalized_column_volumes"])
+        .time(int(event["time_ns"])) 
+    )
+
+    influx_client.write(database=DATABASE, record=point)
+    print("data point submitted to influxdb")
+        
 
 def handle_event(event: dict) -> None:
     """ Process individual event from Pub/Sub """
@@ -86,10 +91,6 @@ def handle_event(event: dict) -> None:
     last_flow = last_flow_rate.get(chrom_unit, 0)
     if chrom_unit not in totalized_volume_ml:
         totalized_volume_ml[chrom_unit] = 0.0
-
-    if last_ts is not None and cur_ts < last_ts:
-        print(f"Skipping out of order event for {chrom_unit}. Current TS: {cur_ts}, Last TS: {last_ts}")
-        return
 
     if last_ts is not None:
         # Calculate time difference in minutes
@@ -113,4 +114,5 @@ def handle_event(event: dict) -> None:
     return event
 
 if __name__ == "__main__":
-    main()
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
