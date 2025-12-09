@@ -2,21 +2,21 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "5.13.0"
+      version = ">= 5.20.0"
     }
   }
 }
 
-
 provider "google" {
   credentials = file(var.credentials)
-  project = var.project
-  region  = var.region
+  project = var.gcp_project_id
+  region  = var.gcp_region
 }
 
+// Cloud Storage Buckets
 resource "google_storage_bucket" "trend_bucket" {
-  name          = var.trend-bucket
-  location      = var.location
+  name          = var.gcs_trend_bucket
+  location      = var.gcp_region
   force_destroy = true
 
   lifecycle_rule {
@@ -30,8 +30,8 @@ resource "google_storage_bucket" "trend_bucket" {
 }
 
 resource "google_storage_bucket" "batch_bucket" {
-  name          = var.batch-bucket
-  location      = var.location
+  name          = var.gcs_batch_bucket
+  location      = var.gcp_region
   force_destroy = true
 
   lifecycle_rule {
@@ -45,8 +45,8 @@ resource "google_storage_bucket" "batch_bucket" {
 }
 
 resource "google_storage_bucket" "sample_bucket" {
-  name          = var.sample-bucket
-  location      = var.location
+  name          = var.gcs_sample_bucket
+  location      = var.gcp_region
   force_destroy = true
 
   lifecycle_rule {
@@ -59,14 +59,14 @@ resource "google_storage_bucket" "sample_bucket" {
   }
 }
 
-// Pub/Sub For Streaming Sensor Data to InfluxDB and batching data to GCS
+// PubSub topics, subscriptions, notifications
 resource "google_pubsub_topic" "chrom_stream_topic" {
   name = "chrom-sensor-readings"
 
   message_retention_duration = "86400s" # 24 hours
 }
 
-resource "google_pubsub_subscription" "chrom_stream_sub" {
+resource "google_pubsub_subscription" "chrom_sensor_sub" {
   name  = "chrom-sensor-readings-sub"
   topic = google_pubsub_topic.chrom_stream_topic.name
 
@@ -76,22 +76,40 @@ resource "google_pubsub_subscription" "chrom_stream_sub" {
   ack_deadline_seconds       = 10
   message_retention_duration = "86400s"
 
-  # pull-mode
+  # for pull-mode
   expiration_policy {
     ttl = "604800s" # 7 days
   }
+
+  # set cloud run trigger
+  push_config {
+    push_endpoint = google_cloud_run_v2_service.influx_consumer.uri
+
+    oidc_token {
+      service_account_email = var.gcp_service_account
+    }
+  }
 }
 
-resource "google_pubsub_subscription" "chrom_stream_sub" {
+resource "google_pubsub_subscription" "chrom_batched_sub" {
   name  = "chrom-batched-readings-sub"
   topic = google_pubsub_topic.chrom_stream_topic.name
 
   ack_deadline_seconds       = 10
   message_retention_duration = "86400s"
 
-  # pull-mode
+  # for pull-mode
   expiration_policy {
     ttl = "604800s" # 7 days
+  }
+
+  # set cloud run trigger
+  push_config {
+    push_endpoint = google_cloud_run_v2_service.gcs_consumer.uri
+
+    oidc_token {
+      service_account_email = var.gcp_service_account
+    }
   }
 }
 
@@ -141,7 +159,7 @@ resource "google_storage_notification" "sample_bucket_notification" {
   depends_on     = [google_pubsub_topic_iam_binding.sample_binding]
 }
 
-// Enable notifications by giving the correct IAM permission to the unique service account.
+// Enable notifications by giving the correct IAM permission to the unique service account
 data "google_storage_project_service_account" "gcs_account" {
   provider = google
 }
@@ -204,5 +222,82 @@ resource "google_pubsub_subscription" "sample_bucket_sub" {
   # pull-mode
   expiration_policy {
     ttl = "604800s" # 7 days
+  }
+}
+
+// Cloud Run Services
+# influx consumer cloud run service
+resource "google_cloud_run_v2_service" "influx_consumer" {
+  name     = "influx-consumer"
+  location = var.gcp_region
+  deletion_protection = false
+
+  template {
+    service_account = var.gcp_service_account
+
+    max_instance_request_concurrency = 1
+
+    containers {
+      image = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/cloudrun-repo/influx-consumer"
+
+      env {
+        name  = "PUBSUB_STREAMING_SUB_ID"
+        value = var.pubsub_streaming_sub_id
+      }
+      env {
+        name  = "GCP_PROJECT_ID"
+        value = var.gcp_project_id
+      }
+      env {
+        name  = "INFLUXDB_WRITE_TOKEN"
+        value = var.influxdb_write_token
+      }
+      env {
+        name  = "INFLUXDB_BUCKET"
+        value = var.influxdb_bucket
+      }
+    }
+
+    scaling {
+      min_instance_count = 1
+      max_instance_count = 5
+    }
+
+  }
+}
+
+# gcs consumer cloud run service
+resource "google_cloud_run_v2_service" "gcs_consumer" {
+  name     = "gcs-consumer"
+  location = var.gcp_region
+  deletion_protection = false
+
+  template {
+    service_account = var.gcp_service_account
+
+    max_instance_request_concurrency = 1
+
+    containers {
+      image = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/cloudrun-repo/gcs-consumer"
+
+      env {
+        name  = "PUBSUB_BATCHED_SUB_ID"
+        value = var.pubsub_batched_sub_id
+      }
+      env {
+        name  = "GCP_PROJECT_ID"
+        value = var.gcp_project_id
+      }
+      env {
+        name  = "GCS_TREND_BUCKET"
+        value = var.gcs_trend_bucket
+      }
+    }
+
+    scaling {
+      min_instance_count = 1
+      max_instance_count = 5
+    }
+
   }
 }
