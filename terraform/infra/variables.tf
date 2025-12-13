@@ -43,5 +43,23 @@ variable "pubsub_batched_sub_id" {
     description = "My pubsub chrom sensor batched subscription for GCS"
 }
 
+variable "sf_organization_name" {
+    description = "My snowflake organization name"
+}
 
+variable "sf_account_name" {
+    description = "My snowflake account name"
+}
+
+variable "sf_user" {
+    description = "My snowflake username"
+}
+
+variable "sf_password" {
+    description = "My snowflake password"
+}
+
+variable "sf_role" {
+    description = "My snowflake role"
+}
 

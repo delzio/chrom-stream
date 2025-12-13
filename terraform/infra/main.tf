@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/google"
       version = ">= 5.20.0"
     }
+    snowflake = {
+      source  = "snowflakedb/snowflake"
+      version = ">= 2.0.0"
+    }
   }
 }
 
@@ -11,6 +15,21 @@ provider "google" {
   credentials = file(var.credentials)
   project = var.gcp_project_id
   region  = var.gcp_region
+}
+
+provider "snowflake" {
+  organization_name = var.sf_organization_name
+  account_name      = var.sf_account_name
+  user              = var.sf_user
+  password          = var.sf_password
+  role              = var.sf_role
+  preview_features_enabled = [
+    "snowflake_storage_integration_resource", 
+    "snowflake_notification_integration_resource",
+    "snowflake_table_resource",
+    "snowflake_stage_resource",
+    "snowflake_pipe_resource"
+  ]
 }
 
 // Cloud Storage Buckets
@@ -301,3 +320,6 @@ resource "google_cloud_run_v2_service" "gcs_consumer" {
 
   }
 }
+
+
+
