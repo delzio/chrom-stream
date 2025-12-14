@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: phase_silver
+    description: Cleaned and typed phase-level events
+
+    columns:
+      - name: phase_event_id
+        description: Surrogate key for a phase event
+        tests:
+          - not_null
+          - unique
+
+      - name: batch_id
+        description: Unique identifier for the chromatography batch
+        tests:
+          - not_null
+
+      - name: phase
+        description: Identifier for the chromatography phase
+        tests:
+          - not_null
+
+      - name: event_name
+        description: Type of batch event (e.g., START, END)
+        tests:
+          - not_null
+
+      - name: event_ts
+        description: Parsed UTC event timestamp
+        tests:
+          - not_null

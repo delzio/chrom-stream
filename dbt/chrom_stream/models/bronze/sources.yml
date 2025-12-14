@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: bronze
+    database: CHROM_STREAM_DB
+    schema: BRONZE
+    tables:
+      - name: trend_raw
+        description: Raw VARIANT chromatography trends
+      - name: batch_raw
+        description: Raw VARIANT chromatography batch contexts
+      - name: sample_raw
+        description: Raw JSON chromatography sample results

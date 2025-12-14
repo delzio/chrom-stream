@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: batch_silver
+    description: Cleaned and typed batch-level events
+
+    columns:
+      - name: batch_event_id
+        description: Surrogate key for a batch event
+        tests:
+          - not_null
+          - unique
+
+      - name: batch_id
+        description: Unique identifier for the chromatography batch
+        tests:
+          - not_null
+
+      - name: chrom_id
+        description: Identifier for the chromatography instrument
+        tests:
+          - not_null
+
+      - name: event_name
+        description: Type of batch event (e.g., START, END)
+        tests:
+          - not_null
+
+      - name: event_ts
+        description: Parsed UTC event timestamp
+        tests:
+          - not_null

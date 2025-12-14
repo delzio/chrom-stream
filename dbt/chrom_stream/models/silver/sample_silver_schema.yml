@@ -1,0 +1,39 @@
+version: 2
+
+models:
+  - name: sample_silver
+    description: Parsed sample concentration results with typed fields
+
+    columns:
+      - name: test_id
+        description: Test result unique identifier
+        tests:
+          - not_null
+          - unique
+
+      - name: batch_id
+        description: Unique identifier for the chromatography batch
+        tests:
+          - not_null
+
+      - name: sample_id
+        description: Unique identifier for the sample
+        tests:
+          - not_null
+
+      - name: scan_result
+        description: Result of the sample concentration scan
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: ['success', 'fail']
+
+      - name: test_ts
+        description: Parsed UTC test timestamp
+        tests:
+          - not_null
+
+      - name: protein_concentration_mg_ml
+        description: Measured protein concentration in mg/mL
+        tests:
+          - not_null

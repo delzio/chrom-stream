@@ -1,0 +1,54 @@
+version: 2
+
+models:
+  - name: trend_silver
+    description: Cleaned chrom sensor trend results
+
+    columns:
+      - name: trend_point_id
+        description: Surrogate key for a trend point
+        tests:
+          - not_null
+          - unique
+
+      - name: time_iso
+        description: Timestamp of sensor reading
+        tests:
+          - not_null
+
+      - name: chrom_id
+        description: Identifier for the chromatography instrument
+        tests:
+          - not_null
+
+      - name: totalized_batch_time_sec
+        description: Totalized time since batch start in seconds
+        tests:
+          - not_null
+
+      - name: flow_rate_lpm
+        description: Flow rate reading in LPM
+        tests:
+          - not_null
+
+      - name: pressure_bar
+        description: Pressure reading in bar
+        tests:
+          - not_null
+
+      - name: ph
+        description: pH reading
+        tests:
+          - not_null
+
+      - name: cond_ms_cm
+        description: Conductivity reading in mS/cm
+        tests:
+          - not_null
+
+      - name: uv_mau
+        description: UV absorbance reading in mAu
+        tests:
+          - not_null
+
+      
