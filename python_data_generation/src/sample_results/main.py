@@ -118,6 +118,7 @@ def build_sample_dataset(template_path: str, number_of_runs: int, column_ids: li
                  batch_id=batch_id, column_id=col, sample_ts=pre_sample_ts, target_titer=1.0,
                  retest_delay_sec=retest_delay_sec
             )
+            test_id = cur_post_sample_result[-1]["test_metadata"]["test_id"]
             sample_results.extend(cur_pre_sample_result)
 
             # Generate post-chrom sample results
@@ -131,6 +132,7 @@ def build_sample_dataset(template_path: str, number_of_runs: int, column_ids: li
                  batch_id=batch_id, column_id=col, sample_ts=post_sample_ts, target_titer=target_titer,
                  retest_delay_sec=retest_delay_sec
             )
+            test_id = cur_post_sample_result[-1]["test_metadata"]["test_id"]
             sample_results.extend(cur_post_sample_result)
 
     return sample_results
