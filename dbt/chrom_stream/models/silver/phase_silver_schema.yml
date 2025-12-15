@@ -16,7 +16,7 @@ models:
         tests:
           - not_null
 
-      - name: phase
+      - name: phase_name
         description: Identifier for the chromatography phase
         tests:
           - not_null

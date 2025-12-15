@@ -18,7 +18,7 @@ SELECT
     raw:ph::FLOAT AS ph,
     raw:uv_mau::FLOAT AS uv_mau,
     raw:cond_mScm::FLOAT AS cond_ms_cm,
-    raw:totalized_volume_ml::FLOAT AS totalized_vol_l,
+    raw:totalized_volume_ml::FLOAT / 1000 AS totalized_vol_l,
     raw:totalized_column_volumes::FLOAT AS totalized_cv,
     source_file,
     load_time

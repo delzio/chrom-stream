@@ -12,7 +12,7 @@ SELECT
     ]) }} AS phase_event_id,
 
     raw:batch_id::NUMBER AS batch_id,
-    raw:phase::STRING AS phase,
+    raw:phase::STRING AS phase_name,
     raw:event::STRING AS event_name,
     TO_TIMESTAMP(raw:event_ts::STRING) AS event_ts,
     source_file,
