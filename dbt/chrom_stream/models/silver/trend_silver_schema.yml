@@ -11,7 +11,7 @@ models:
           - not_null
           - unique
 
-      - name: time_iso
+      - name: reading_ts
         description: Timestamp of sensor reading
         tests:
           - not_null

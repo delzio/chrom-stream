@@ -31,10 +31,15 @@ WITH trend_base AS (
     FROM {{ ref('trend_silver' )}} ts
     LEFT JOIN {{ ref('batch_base') }} bb
     ON ts.chrom_id = bb.chrom_id
-    AND ts.reading_ts BETWEEN bb.batch_start_ts AND bb.batch_end_ts
+    AND ts.reading_ts >= bb.batch_start_ts
+    AND (bb.batch_end_ts IS NULL OR ts.reading_ts <= bb.batch_end_ts)
     LEFT JOIN {{ ref('phase_base') }} pb
     ON bb.batch_id = pb.batch_id
-    AND ts.reading_ts BETWEEN pb.phase_start_ts AND pb.phase_end_ts
+    AND ts.reading_ts >= pb.phase_start_ts 
+    AND (pb.phase_end_ts IS NULL OR ts.reading_ts <= pb.phase_end_ts)
+    QUALIFY
+        ROW_NUMBER() OVER (PARTITION BY ts.chrom_id, ts.reading_ts ORDER BY bb.batch_start_ts DESC) = 1
+        AND ROW_NUMBER() OVER (PARTITION BY bb.batch_id, ts.reading_ts ORDER BY pb.phase_start_ts DESC) = 1
 )
 
 SELECT

@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: phase_base
+    description: Cleaned phase context data
+
+    columns:
+
+      - name: phase_id
+        description: Unique identifier for the chromatography phase
+        tests:
+          - not_null
+          - unique
+
+      - name: batch_id
+        description: Identifier for the chromatography batch
+        tests:
+          - not_null
+      
+      - name: phase_name
+        description: Phase name label
+        tests:
+          - not_null
+
+      - name: phase_start_ts
+        description: Parsed UTC phase start timestamp
+        tests:
+          - not_null

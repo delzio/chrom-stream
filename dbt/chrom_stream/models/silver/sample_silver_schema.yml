@@ -26,7 +26,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              arguments: ['success', 'fail']
+              arguments:
+                values: ['success', 'fail']
 
       - name: test_ts
         description: Parsed UTC test timestamp

@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: trend_base
+    description: Cleaned chrom sensor reading data with context
+
+    columns:
+
+      - name: trend_point_id
+        description: Unique identifier for chrom sensor data point
+        tests:
+          - not_null
+          - unique
+
+      - name: chrom_id
+        description: Identifier for the chromatography instrument
+        tests:
+          - not_null
+
+      - name: reading_ts
+        description: Chrom sensor reading timestamp
+        tests:
+          - not_null
+
+      - name: flow_rate_lpm
+        description: flow rate measurement in LPM
+        tests:
+          - not_null
+
+      - name: uv_mau
+        description: UV absorbance measurement in mAu
+        tests:
+          - not_null
+
