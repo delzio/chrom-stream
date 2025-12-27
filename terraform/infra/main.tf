@@ -12,7 +12,7 @@ terraform {
 }
 
 provider "google" {
-  credentials = file(var.credentials)
+  credentials = file(var.gcp_credentials)
   project = var.gcp_project_id
   region  = var.gcp_region
 }
@@ -21,7 +21,8 @@ provider "snowflake" {
   organization_name = var.sf_organization_name
   account_name      = var.sf_account_name
   user              = var.sf_user
-  password          = var.sf_password
+  authenticator     = "SNOWFLAKE_JWT"
+  private_key       = file(var.sf_credentials)
   role              = var.sf_role
   preview_features_enabled = [
     "snowflake_storage_integration_resource", 

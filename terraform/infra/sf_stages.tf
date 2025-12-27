@@ -15,7 +15,7 @@ resource "snowflake_stage" "batch_stage" {
   url                 = "gcs://${var.gcs_batch_bucket}/"
   storage_integration = snowflake_storage_integration.gcs_integration.name
 
-  file_format = "type = PARQUET"
+  file_format = "TYPE = PARQUET"
 }
 
 resource "snowflake_stage" "sample_stage" {

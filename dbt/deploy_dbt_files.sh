@@ -19,16 +19,16 @@ fi
 
 echo "Composer DAG bucket: ${COMPOSER_BUCKET}"
 
-echo "Deploying dbt files to Composer..."
-
-gsutil -m rsync -r -d \
-  "${LOCAL_DBT_DIR}" \
-  "${COMPOSER_BUCKET}/dags/dbt
-
 echo "Deploying airflow dags to Composer..."
 
 gsutil -m rsync -r -d \
   "${LOCAL_DAGS_DIR}" \
-  "${COMPOSER_BUCKET}/dags"
+  "${COMPOSER_BUCKET}"
+
+echo "Deploying dbt files to Composer..."
+
+gsutil -m rsync -r -d \
+  "${LOCAL_DBT_DIR}" \
+  "${COMPOSER_BUCKET}/dbt"
 
 echo "dbt project deployed successfully"

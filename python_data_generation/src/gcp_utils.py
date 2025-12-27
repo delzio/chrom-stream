@@ -10,7 +10,7 @@ import io
 CREDENTIALS = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
 PROJECT_ID = os.environ["GCP_PROJECT_ID"]
 TOPIC_ID = "chrom-sensor-readings"   # name of topic
-SUBSCRIPTION_ID = os.environ["PUBSUB_SUBSCRIPTION_ID"]
+SUBSCRIPTION_ID = os.environ["PUBSUB_STREAMING_SUB_ID"]
 publisher = pubsub_v1.PublisherClient(
     publisher_options=pubsub_v1.types.PublisherOptions(enable_message_ordering=True)
 )

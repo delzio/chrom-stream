@@ -1,10 +1,14 @@
-variable "credentials" {
-    description = "My Project Credentials"
+variable "gcp_credentials" {
+    description = "My GCP Project Credentials"
     default = "../../.google/credentials/gcp.json"
 }
 
 variable "gcp_project_id" {
     description = "My Project"
+}
+
+variable "gcp_project_number" {
+    description = "My Project Number"
 }
 
 variable "gcp_region" {
@@ -43,6 +47,11 @@ variable "pubsub_batched_sub_id" {
     description = "My pubsub chrom sensor batched subscription for GCS"
 }
 
+variable "sf_credentials" {
+    description = "My Snowflake Credentials"
+    default = "../../.snowflake/credentials/snowflake_tf_key.p8"
+}
+
 variable "sf_organization_name" {
     description = "My snowflake organization name"
 }
@@ -52,14 +61,17 @@ variable "sf_account_name" {
 }
 
 variable "sf_user" {
-    description = "My snowflake username"
-}
-
-variable "sf_password" {
-    description = "My snowflake password"
+    description = "My snowflake terraform service account"
 }
 
 variable "sf_role" {
-    description = "My snowflake role"
+    description = "My snowflake terraform service account role"
 }
 
+variable "sf_dbt_user" {
+    description = "My snowflake dbt service account"
+}
+
+variable "sf_dbt_role" {
+    description = "My snowflake dbt service account role"
+}

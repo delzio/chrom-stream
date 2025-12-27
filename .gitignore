@@ -2,6 +2,7 @@
 .env
 .venv/
 .google/
+.snowflake/
 
 # python files
 __pycache__/

@@ -9,7 +9,7 @@ from google.cloud.storage.bucket import Bucket
 
 # GCP CONFIG
 PROJECT_ID = os.environ["GCP_PROJECT_ID"]
-GCS_BUCKET = os.environ["GCS_TREND_BUCKET"]
+GCS_BUCKET = os.environ["GCP_TREND_BUCKET"]
 gcs_client = storage.Client()
 BUCKET = gcs_client.bucket(GCS_BUCKET)
 

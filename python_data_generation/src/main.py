@@ -115,8 +115,8 @@ def main():
         sample_process = Process(target=print_sample, args=(sample_queue,))
     else:
         trend_process = Process(target=publish_trend_to_pubsub, args=(trend_queue,))
-        gcs_bucket_batch = os.environ["GCS_BATCH_BUCKET"]
-        gcs_bucket_sample = os.environ["GCS_SAMPLE_BUCKET"]
+        gcs_bucket_batch = os.environ["GCP_BATCH_BUCKET"]
+        gcs_bucket_sample = os.environ["GCP_SAMPLE_BUCKET"]
         client = storage.Client()
         bucket_batch = client.bucket(gcs_bucket_batch)
         bucket_sample = client.bucket(gcs_bucket_sample)
