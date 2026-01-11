@@ -1,20 +1,10 @@
-//Create snowflake secrets for dbt service account
-data "external" "sf_pub_key" {
-  program = ["bash", "./create_sf_secrets.sh"]
-}
-
-output "debug_pub_key" {
-  value     = data.external.sf_pub_key.result.public_key
-  sensitive = true
-}
-
 resource "snowflake_account_role" "dbt_role" {
   name = "DBT_TRANSFORMER"
 }
 
 resource "snowflake_grant_privileges_to_account_role" "warehouse_use" {
   account_role_name  = snowflake_account_role.dbt_role.name
-  privileges = ["USAGE", "OPERATE"]
+  privileges = ["USAGE", "OPERATE", "MODIFY"]
   on_account_object {
     object_type = "WAREHOUSE"
     object_name = snowflake_warehouse.chrom_stream_wh.name
@@ -88,41 +78,25 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_future_views_select" 
   }
 }
 
+resource "snowflake_grant_privileges_to_account_role" "dbt_all_schema_privs" {
+  account_role_name = snowflake_account_role.dbt_role.name
+  privileges = ["ALL PRIVILEGES"]
 
-resource "snowflake_user" "dbt_srvc_account" {
-  name            = "DBT_SRVC_ACCOUNT"
-  login_name      = "DBT_SVRC_ACCOUNT"
-  default_role    = snowflake_account_role.dbt_role.name
-  rsa_public_key  = data.external.sf_pub_key.result.public_key
+  on_schema {
+    all_schemas_in_database = snowflake_database.chrom_stream_db.name
+  }
+}
+
+resource "snowflake_grant_privileges_to_account_role" "dbt_future_schema_privs" {
+  account_role_name = snowflake_account_role.dbt_role.name
+  privileges = ["ALL PRIVILEGES"]
+
+  on_schema {
+    future_schemas_in_database = snowflake_database.chrom_stream_db.name
+  }
 }
 
 resource "snowflake_grant_account_role" "dbt_account_role" {
   role_name = snowflake_account_role.dbt_role.name
-  user_name = snowflake_user.dbt_srvc_account.name
+  user_name = var.sf_dbt_user
 }
-
-
-#resource "snowflake_grant_privileges_to_account_role" "bronze_usage" {
-#  account_role_name  = snowflake_account_role.dbt_role.name
-#  privileges = ["USAGE", "CREATE TABLE", "INSERT", "UPDATE", "DELETE"]
-#  on_schema {
-#    schema_name = "${snowflake_database.chrom_stream_db.name}.BRONZE"
-#  }
-#}
-#
-#resource "snowflake_grant_privileges_to_account_role" "silver_usage" {
-#  account_role_name  = snowflake_account_role.dbt_role.name
-#  privileges = ["USAGE", "CREATE TABLE"]
-#  on_schema {
-#    schema_name = "${snowflake_database.chrom_stream_db.name}.SILVER"
-#  }
-#}
-#
-#resource "snowflake_grant_privileges_to_account_role" "gold_usage" {
-#  account_role_name  = snowflake_account_role.dbt_role.name
-#  privileges = ["USAGE", "CREATE TABLE"]
-#  on_schema {
-#    schema_name = "${snowflake_database.chrom_stream_db.name}.GOLD"
-#  }
-#}
-#

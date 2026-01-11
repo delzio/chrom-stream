@@ -73,5 +73,5 @@ variable "sf_dbt_user" {
 }
 
 variable "sf_dbt_role" {
-    description = "My snowflake dbt service account role"
+    description = "My snowflake dbt service account"
 }

@@ -258,7 +258,7 @@ resource "google_cloud_run_v2_service" "influx_consumer" {
     max_instance_request_concurrency = 1
 
     containers {
-      image = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/cloudrun-repo/influx-consumer"
+      image = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/docker-repo/influx-consumer"
 
       env {
         name  = "PUBSUB_STREAMING_SUB_ID"
@@ -298,7 +298,7 @@ resource "google_cloud_run_v2_service" "gcs_consumer" {
     max_instance_request_concurrency = 1
 
     containers {
-      image = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/cloudrun-repo/gcs-consumer"
+      image = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/docker-repo/gcs-consumer"
 
       env {
         name  = "PUBSUB_BATCHED_SUB_ID"

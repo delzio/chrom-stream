@@ -20,3 +20,6 @@ output_files/
 crash.log
 crash.*.log
 *.plan
+
+# dbt docker files
+sf-secrets.yaml

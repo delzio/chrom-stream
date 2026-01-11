@@ -14,10 +14,10 @@ provider "google" {
 }
 
 // CloudBuild Artifact Repo
-resource "google_artifact_registry_repository" "cloudrun_repo" {
+resource "google_artifact_registry_repository" "docker_repo" {
   provider        = google
-  repository_id   = "cloudrun-repo"
-  description     = "Container registry for Cloud Run services"
+  repository_id   = "docker-repo"
+  description     = "Container registry for Cloud Run and Kubernetes docker services"
   format          = "DOCKER"
   location        = var.gcp_region
 }

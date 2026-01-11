@@ -1,33 +1,30 @@
 resource "google_composer_environment" "chrom_batch_airflow" {
-    name   = "chrom-batch-airflow"
-    region = var.gcp_region
+  name   = "chrom-batch-airflow"
+  region = var.gcp_region
 
-    config {
-        environment_size = "ENVIRONMENT_SIZE_SMALL"
+  config {
+    environment_size = "ENVIRONMENT_SIZE_SMALL"
 
-        node_config {
-            service_account = google_service_account.composer_sa.email
-        }
-
-        software_config {
-            image_version = "composer-3-airflow-2"
-
-            pypi_packages = {
-                dbt-core       = "==1.10.8"
-                dbt-snowflake  = "==1.10.0"
-            }
-
-            env_variables = {
-                GCP_PROJECT_ID                  = var.gcp_project_id
-                SNOWFLAKE_ORGANIZATION          = var.sf_organization_name
-                SNOWFLAKE_ACCOUNT               = var.sf_account_name
-                SNOWFLAKE_USER                  = snowflake_user.dbt_srvc_account.name
-                SNOWFLAKE_ROLE                  = snowflake_account_role.dbt_role.name
-                SNOWFLAKE_DATABASE              = "chrom_stream_db"
-                SNOWFLAKE_WAREHOUSE             = "chrom_stream_wh"
-            }
-        }
+    node_config {
+      service_account = google_service_account.composer_sa.email
     }
+
+    software_config {
+      image_version = "composer-3-airflow-2"
+
+      pypi_packages = {
+        apache-airflow-providers-cncf-kubernetes = ">=7.0.0"
+      }
+
+      env_variables = {
+        DBT_IMAGE = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/docker-repo/dbt-snowflake-pipeline"
+        SF_ORGANIZATION          = var.sf_organization_name
+        SF_ACCOUNT               = var.sf_account_name
+        SF_USER                  = var.sf_dbt_user
+        SF_ROLE                  = var.sf_dbt_role
+      }
+    }
+  }
 }
 
 resource "google_service_account" "composer_sa" {
@@ -47,17 +44,17 @@ resource "google_project_iam_member" "composer_gcs" {
   member  = "serviceAccount:${google_service_account.composer_sa.email}"
 }
 
-resource "google_project_iam_member" "composer_secret_accessor" {
+resource "google_project_iam_member" "composer_container_developer" {
+  project = var.gcp_project_id
+  role    = "roles/container.developer"
+  member  = "serviceAccount:${google_service_account.composer_sa.email}"
+}
+
+resource "google_project_iam_member" "gke_secret_access" {
   project = var.gcp_project_id
   role    = "roles/secretmanager.secretAccessor"
   member  = "serviceAccount:${google_service_account.composer_sa.email}"
 }
-
-#resource "google_project_iam_member" "composer_v2_service_agent_ext" {
-#  project = var.gcp_project_id
-#  role    = "roles/composer.ServiceAgentV2Ext"
-#  member  = "serviceAccount:service-${var.gcp_project_number}@cloudcomposer-accounts.iam.gserviceaccount.com"
-#}
 
 resource "google_service_account_iam_member" "composer_service_agent_actas" {
   service_account_id = google_service_account.composer_sa.name

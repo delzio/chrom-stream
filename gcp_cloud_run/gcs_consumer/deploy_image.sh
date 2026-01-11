@@ -1,12 +1,12 @@
 #!/bin/bash
 set -eu
 
-IMAGE_PATH="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/cloudrun-repo/gcs-consumer:latest"
+IMAGE_PATH="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/docker-repo/gcs-consumer:latest"
 
 echo "Deploying Docker image to Google Cloud Artifact Registry"
 echo "  PROJECT:     ${GCP_PROJECT_ID}"
 echo "  REGION:      ${GCP_REGION}"
-echo "  REPOSITORY:  cloudrun-repo"
+echo "  REPOSITORY:  docker-repo"
 echo "  IMAGE:       gcs-consumer"
 echo "  TAG:         latest"
 echo ""
