@@ -2,7 +2,7 @@
 set -eu
 
 COMPOSER_ENV="chrom-batch-airflow"
-LOCAL_DBT_DIR="${CHROM_STREAM_HOME}/dbt/chrom_stream"
+LOCAL_DBT_DIR="${CHROM_STREAM_HOME}/dbt/dbt_docker/chrom_stream"
 LOCAL_DAGS_DIR="${CHROM_STREAM_HOME}/dbt/dags"
 
 echo "Finding Composer GCS bucket..."
@@ -25,10 +25,4 @@ gsutil -m rsync -r -d \
   "${LOCAL_DAGS_DIR}" \
   "${COMPOSER_BUCKET}"
 
-echo "Deploying dbt files to Composer..."
-
-gsutil -m rsync -r -d \
-  "${LOCAL_DBT_DIR}" \
-  "${COMPOSER_BUCKET}/dbt"
-
-echo "dbt project deployed successfully"
+echo "Deployed dags to Composer."

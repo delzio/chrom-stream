@@ -1,0 +1,14 @@
+chrom_stream:
+    outputs:
+        prod:
+            account: "{{ env_var('SF_ORGANIZATION') }}-{{ env_var('SF_ACCOUNT') }}"
+            database: "{{ env_var('SF_DATABASE') }}"
+            private_key_path: "{{ env_var('SF_PRIVATE_KEY_PATH') }}"
+            private_key_passphrase: "{{ env_var('SF_PRIVATE_KEY_PASSPHRASE') }}"
+            role: "{{ env_var('SF_ROLE') }}"
+            schema: "{{ env_var('SF_SCHEMA') }}"
+            threads: 1
+            type: snowflake
+            user: "{{ env_var('SF_USER') }}"
+            warehouse: "{{ env_var('SF_WAREHOUSE') }}"
+    target: prod

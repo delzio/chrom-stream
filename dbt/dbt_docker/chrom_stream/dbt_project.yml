@@ -31,7 +31,6 @@ clean-targets:         # directories to be removed by `dbt clean`
 # files using the `{{ config(...) }}` macro.
 models:
   chrom_stream:
-    # Config indicated by + and applies to all files under models/example/
     bronze:
       +schema: _t1_bronze
       +materialized: view
@@ -39,7 +38,9 @@ models:
     silver:
       +schema: _t1_silver
       +materialized: incremental
+      +tags: "silver"
 
     gold:
       +schema: _t1_gold
       +materialized: table
+      +tags: "gold"

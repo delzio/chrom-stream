@@ -1,117 +1,93 @@
-import requests
-import os
 from airflow import DAG
-from airflow.providers.standard.operators.bash import BashOperator
-from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.secret import Secret
+from kubernetes.client import models as k8s
+
+import os
 from datetime import datetime, timedelta
-from google.cloud import secretmanager
 
-DBT_DIR = "/home/airflow/gcs/dags/dbt"
-PROFILE_DIR = "/home/airflow/.dbt"
-GCP_PROJECT_ID = os.environ['GCP_PROJECT_ID']
-SNOWFLAKE_ACCOUNT = os.environ["SNOWFLAKE_ACCOUNT"]
-SNOWFLAKE_USER = os.environ["SNOWFLAKE_USER"]
-SNOWFLAKE_ROLE = os.environ["SNOWFLAKE_ROLE"]
-SNOWFLAKE_DATABASE = os.environ["SNOWFLAKE_DATABASE"]
-SNOWFLAKE_WAREHOUSE = os.environ["SNOWFLAKE_WAREHOUSE"]
-SNOWFLAKE_ORGANIZATION = os.environ["SNOWFLAKE_ORGANIZATION"]
+# Kubernetes secret volume
+sf_key_file = Secret(
+    deploy_type="volume",
+    deploy_target="/secrets",
+    secret="sf-secrets",
+    key="sf-private-key",
+)
 
-def fetch_token(**context):
+sf_passphrase = Secret(
+    deploy_type="env",
+    deploy_target="SF_PRIVATE_KEY_PASSPHRASE",
+    secret="sf-secrets",
+    key="sf-private-key-passphrase",
+)
 
-    def load_secret(name):
-        client = secretmanager.SecretManagerServiceClient()
-        path = f"projects/{GCP_PROJECT_ID}/secrets/{name}/versions/latest"
-        return client.access_secret_version(name=path).payload.data.decode()
-
-    client_id = load_secret("SNOWFLAKE_OAUTH_CLIENT")
-    client_secret = load_secret("SNOWFLAKE_OAUTH_SECRET")
-
-    url = f"https://{SNOWFLAKE_ORGANIZATION}-{SNOWFLAKE_ACCOUNT}.snowflakecomputing.com/oauth/token-request"
-
-    payload = {
-        "grant_type": "password",
-        "username": SNOWFLAKE_USER,
-        "password": "",
-        "scope": f"session:role:{SNOWFLAKE_ROLE}",
+# Collect environment variables at task runtime
+def get_env_vars() -> dict:
+    dbt_env = {
+        "SF_ORGANIZATION": os.environ["SF_ORGANIZATION"],
+        "SF_ACCOUNT": os.environ["SF_ACCOUNT"],
+        "SF_SCHEMA": "test_schema",
+        "SF_DATABASE": "chrom_stream_db",
+        "SF_WAREHOUSE": "chrom_stream_wh",
+        "SF_USER": os.environ["SF_USER"],
+        "SF_ROLE": os.environ["SF_ROLE"],
+        "SF_PRIVATE_KEY_PATH": "/secrets/sf-private-key"
     }
+    return dbt_env
 
-    response = requests.post(url, auth=(client_id, client_secret), data=payload)
-    response.raise_for_status()
+def get_image() -> str:
+    return f'{os.environ["DBT_IMAGE"]}:latest'
 
-    token = response.json()["access_token"]
-    context["ti"].xcom_push(key="sf_token", value=token)
-
-
+# DAG setup
 default_args = {
-    "owner": "data",
+    "owner": "chrom",
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
 }
 
 with DAG(
-    dag_id="dbt_pipeline",
+    dag_id="chrom_dbt_pipeline",
     default_args=default_args,
-    start_date=datetime(2025, 1, 1),
+    start_date=datetime(2026, 1, 1),
     schedule_interval="*/15 * * * *",
     catchup=False,
-    max_active_runs=1,
+    tags=["dbt", "snowflake"]
 ) as dag:
 
-    fetch_sf_token = PythonOperator(
-        task_id="fetch_sf_token",
-        python_callable=fetch_token,
-        provide_context=True,
+    dbt_silver = KubernetesPodOperator(
+        task_id="dbt_silver",
+        name="dbt-silver",
+        image=get_image(),
+        cmds=["dbt"],
+        arguments=["run", "--select", "tag:silver"],
+        env_vars=get_env_vars(),
+        secrets=[sf_key_file, sf_passphrase],
+        get_logs=True,
+        is_delete_operator_pod=True,
     )
 
-    create_profiles = BashOperator(
-        task_id="create_dbt_profile",
-        bash_command=f"""
-        mkdir -p /home/airflow/.dbt
-
-        cat <<'EOF' > /home/airflow/.dbt/profiles.yml
-chrom_stream:
-    target: prod
-    outputs:
-        prod:
-            type: snowflake
-            account: {SNOWFLAKE_ORGANIZATION}-{SNOWFLAKE_ACCOUNT}
-            user: {SNOWFLAKE_USER}
-            authenticator: oauth
-            token: "{{ '{{' }} env_var('SNOWFLAKE_OAUTH_TOKEN') {{ '}}' }}"
-            role: {SNOWFLAKE_ROLE}
-            database: {SNOWFLAKE_DATABASE}
-            warehouse: {SNOWFLAKE_WAREHOUSE}
-            schema: test_schema
-            threads: 2
-
-EOF
-        """
+    dbt_gold = KubernetesPodOperator(
+        task_id="dbt_gold",
+        name="dbt-gold",
+        image=get_image(),
+        cmds=["dbt"],
+        arguments=["run", "--select", "tag:gold"],
+        env_vars=get_env_vars(),
+        secrets=[sf_key_file, sf_passphrase],
+        get_logs=True,
+        is_delete_operator_pod=True,
     )
 
-    dbt_deps = BashOperator(
-        task_id="dbt_deps",
-        bash_command=f"cd {DBT_DIR} && dbt deps",
-        env={
-            "HOME": "/home/airflow",
-        }
+    dbt_tests = KubernetesPodOperator(
+        task_id="dbt_tests",
+        name="dbt-tests",
+        image=get_image(),
+        cmds=["dbt"],
+        arguments=["test"],
+        env_vars=get_env_vars(),
+        secrets=[sf_key_file, sf_passphrase],
+        get_logs=True,
+        is_delete_operator_pod=True,
     )
 
-    dbt_run = BashOperator(
-        task_id="dbt_run",
-        bash_command=f"cd {DBT_DIR} && dbt run --fail-fast",
-        env={
-            "HOME": "/home/airflow",
-            "SNOWFLAKE_OAUTH_TOKEN": "{{ ti.xcom_pull(key='sf_token', task_ids='fetch_sf_token') }}",
-        },
-    )
-
-    dbt_test = BashOperator(
-        task_id="dbt_test",
-        bash_command=f"cd {DBT_DIR} && dbt test",
-        env={
-            "HOME": "/home/airflow",
-            "SNOWFLAKE_OAUTH_TOKEN": "{{ ti.xcom_pull(key='sf_token', task_ids='fetch_sf_token') }}",
-        },
-    )
-
-    fetch_sf_token >> create_profiles >> dbt_deps >> dbt_run >> dbt_test
+    dbt_silver >> dbt_gold >> dbt_tests
