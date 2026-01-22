@@ -1,6 +1,0 @@
-select
-  current_user(),
-  current_role(),
-  current_warehouse(),
-  current_database(),
-  current_schema();

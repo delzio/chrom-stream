@@ -136,7 +136,7 @@ def generate_stream(trend_queue, trend_resolution_hz, stream_rate_adjust_factor,
                 except StopIteration:
                     continue
             time.sleep(1 / trend_resolution_hz / stream_rate_adjust_factor)
-        time.sleep(column_util_gap)
+        time.sleep(column_util_gap / stream_rate_adjust_factor)
 
     # end stream
     trend_queue.put("EOF")

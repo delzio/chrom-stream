@@ -52,7 +52,7 @@ def main():
 
     # Setup GCS upload processes or local print based on test mode
     if not config["local_test"]:
-        gcs_bucket = os.environ["GCS_BATCH_BUCKET"]
+        gcs_bucket = os.environ["GCP_BATCH_BUCKET"]
         client = storage.Client()
         bucket = client.bucket(gcs_bucket)
         batch_process = Process(target=send_event_to_gcs, args=(batch_queue, bucket, "batch"))
@@ -145,7 +145,7 @@ def generate_batch_context_events(batch_queue, phase_queue, number_of_runs, batc
             except IndexError:
                 break
 
-        time.sleep(batch_delay_sec)
+        time.sleep(batch_delay_sec / stream_rate_adjust_factor)
 
     # signal completion to queues
     batch_queue.put("EOF")

@@ -58,28 +58,25 @@ def process_data(data: dict) -> None:
     if last_timestamp_ns.get(chrom_unit, 0) >= cur_ts:
         print(f"Skipping old event for {chrom_unit}")
         return
-    
-    event = handle_event(data)
 
     point = (
         Point("chromatography")
-        .tag("instrument", event["chrom_unit"])
-        .field("uv_mau", event["uv_mau"])
-        .field("cond_mScm", event["cond_mScm"])
-        .field("ph", event["ph"])
-        .field("flow_mL_min", event["flow_mL_min"])
-        .field("pressure_bar", event["pressure_bar"])
-        .field("totalized_volume_ml", event["totalized_volume_ml"])
-        .field("totalized_column_volumes", event["totalized_column_volumes"])
-        .time(int(event["time_ns"])) 
+        .tag("instrument", data["chrom_unit"])
+        .field("time_sec", data["time_sec"])
+        .field("uv_mau", data["uv_mau"])
+        .field("cond_mScm", data["cond_mScm"])
+        .field("ph", data["ph"])
+        .field("flow_mL_min", data["flow_mL_min"])
+        .field("pressure_bar", data["pressure_bar"])
+        .time(int(data["time_ns"])) 
     )
 
     influx_client.write(database=DATABASE, record=point)
     print("data point submitted to influxdb")
         
-
+# deprecated: totalized volume calculations done downstream of streaming
 def handle_event(event: dict) -> None:
-    """ Process individual event from Pub/Sub """
+    """ Process individual event from Pub/Sub and calculate totalized volumes """
     global last_timestamp_ns, last_flow_rate, totalized_volume_ml
 
     # Calculate totalized volume

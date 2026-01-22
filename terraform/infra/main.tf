@@ -255,10 +255,11 @@ resource "google_cloud_run_v2_service" "influx_consumer" {
   template {
     service_account = var.gcp_service_account
 
-    max_instance_request_concurrency = 1
+    max_instance_request_concurrency = 10
+
 
     containers {
-      image = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/docker-repo/influx-consumer"
+      image = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/docker-repo/influx-consumer:latest"
 
       env {
         name  = "PUBSUB_STREAMING_SUB_ID"
@@ -280,7 +281,7 @@ resource "google_cloud_run_v2_service" "influx_consumer" {
 
     scaling {
       min_instance_count = 1
-      max_instance_count = 5
+      max_instance_count = 10
     }
 
   }
@@ -295,10 +296,11 @@ resource "google_cloud_run_v2_service" "gcs_consumer" {
   template {
     service_account = var.gcp_service_account
 
-    max_instance_request_concurrency = 1
+    max_instance_request_concurrency = 10
+
 
     containers {
-      image = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/docker-repo/gcs-consumer"
+      image = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/docker-repo/gcs-consumer:latest"
 
       env {
         name  = "PUBSUB_BATCHED_SUB_ID"
@@ -316,7 +318,7 @@ resource "google_cloud_run_v2_service" "gcs_consumer" {
 
     scaling {
       min_instance_count = 1
-      max_instance_count = 5
+      max_instance_count = 10
     }
 
   }

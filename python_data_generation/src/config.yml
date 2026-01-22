@@ -8,9 +8,9 @@ noise_scale: 1.0
 time_between_batches_sec: 1000
 noise_def:
   trend_noise:
-    uv_mau: [0, 2.0]
-    cond_mScm: [0, 0.15]
-    ph: [0, 0.01]
+    uv_mau: [0, 10.0]
+    cond_mScm: [0, 2.0]
+    ph: [0, 0.2]
     flow_mL_min: [0, 300]
     pressure_bar: [0, 0.01]
   sample_noise:

@@ -9,7 +9,7 @@ from google.cloud.storage.bucket import Bucket
 
 # GCP CONFIG
 PROJECT_ID = os.environ["GCP_PROJECT_ID"]
-GCS_BUCKET = os.environ["GCP_TREND_BUCKET"]
+GCS_BUCKET = os.environ["GCS_TREND_BUCKET"]
 gcs_client = storage.Client()
 BUCKET = gcs_client.bucket(GCS_BUCKET)
 
@@ -52,28 +52,20 @@ def process_data(data: dict) -> None:
     """ Triggered automatically whenever a Pub/Sub message arrives """
     
     chrom_unit = data["chrom_unit"]
-    cur_ts = int(data["time_ns"])
-
-    # handle only new data for streaming
-    if last_timestamp_ns.get(chrom_unit, 0) >= cur_ts:
-        print(f"Skipping old event for {chrom_unit}")
-        return
-    
-    event = handle_event(data)
 
     if chrom_unit not in BUFFER:
         BUFFER[chrom_unit] = []
-    BUFFER[chrom_unit].append(event)
+    BUFFER[chrom_unit].append(data)
 
     if len(BUFFER[chrom_unit]) >= BUFFER_SIZE_LIMIT:
         parquet_to_gcs(
             data=pd.DataFrame(BUFFER[chrom_unit]),
-            gcs_file_path=f"raw/{chrom_unit}/{chrom_unit}_trends_{event['time_iso'].replace(':', '-')}.parquet",
+            gcs_file_path=f"raw/{chrom_unit}/{chrom_unit}_trends_{data['time_iso'].replace(':', '-')}.parquet",
             bucket=BUCKET
         ) 
         BUFFER[chrom_unit] = []
         
-
+# deprecated: totalized volume calculations done downstream of streaming
 def handle_event(event: dict) -> None:
     """ Process individual event from Pub/Sub """
     global last_timestamp_ns, last_flow_rate, totalized_volume_ml
